@@ -55,29 +55,88 @@ Environment variables (see [`.env.example`](.env.example)):
 - **Client:** Static HTML/CSS/JS — dual xterm panes (chat 2/3, system 1/3)
 - **Sessions:** Client UUID in localStorage; server restores nick/rooms on WS reconnect within 30s
 
-## Deploy (Fly.io)
+## Deploy (Northflank — recommended)
+
+Free **always-on** sandbox (2 services, no sleep). Good fit for WebSocket chat.
+
+### 1. Sign up and connect GitHub
+
+1. Go to [northflank.com](https://northflank.com) and create an account (Developer Sandbox).
+2. **Account → VCS** → connect **GitHub** → authorize `ObiRonKenobi/DoomChatII`.
+
+### 2. Create project and service
+
+1. **Create project** (e.g. `doomchat`).
+2. **Add service → Combined service** (build + deploy in one).
+3. **Source:** GitHub → `ObiRonKenobi/DoomChatII` → branch `main`.
+4. **Build:** Dockerfile → path `/Dockerfile`, context `/`.
+
+### 3. Runtime settings
+
+| Setting | Value |
+|---------|--------|
+| **Port** | `8080`, protocol **HTTP**, **public** |
+| **Health check** | path `/health` |
+| **Compute** | smallest sandbox plan (enough for chat MVP) |
+
+**Environment variables:**
+
+| Key | Value |
+|-----|--------|
+| `PORT` | `8080` |
+| `DATA_DIR` | `/data` |
+| `BASE_URL` | `https://YOUR-SERVICE-URL` (set after first deploy — see below) |
+
+### 4. Persistent volume (message boards)
+
+On the service → **Volumes**:
+
+- Add volume (1 GB is plenty)
+- **Container mount path:** `/data`
+
+This keeps SQLite boards across restarts.
+
+### 5. Deploy
+
+Click **Create service** / **Deploy**. First build takes a few minutes.
+
+### 6. Your public URL
+
+Northflank assigns HTTPS automatically, e.g.:
+
+```text
+https://p01--doomchat--xxxxxx.code.run
+```
+
+Find it under **Ports & DNS** on the service page.
+
+Then update `BASE_URL` to that URL and redeploy (or edit env var and restart).
+
+WebSocket URL will be `wss://p01--doomchat--xxxxxx.code.run/ws` (same host, auto TLS).
+
+### 7. Verify
 
 ```bash
-# Install flyctl: https://fly.io/docs/hands-on/install-flyctl/
+curl https://YOUR-SERVICE-URL/health   # → ok
+```
+
+Open the URL in a browser, set a nick, chat in `#lobby`.
+
+### Custom domain (optional)
+
+**Account → Domains** → add your domain → link it to the public port on this service.
+
+---
+
+## Deploy (Fly.io — paid)
+
+Fly.io no longer has a free tier for new accounts. Use only if you add a payment method (~$3–5+/month).
+
+```bash
 fly auth login
-fly launch --no-deploy   # or use included fly.toml
-fly volumes create doomchat_data --size 1
+fly volumes create doomchat_data --region iad --size 1
 fly deploy
 ```
-
-The app listens on `$PORT`, serves static files and `/ws` on the same port, and stores SQLite data on `/data`.
-
-### Railway (fallback)
-
-Use the same `Dockerfile`, set `PORT` and mount a volume at `/data`.
-
-### Replit (demo only)
-
-```bash
-go run .
-```
-
-Not recommended for production — free tier sleeps on idle.
 
 ## Project layout
 
@@ -93,8 +152,8 @@ trivia.go     Trivia bot
 protocol.go   Wire message types
 web/          Frontend (xterm.js)
 trivia.json   Question bank
-Dockerfile    Container build
-fly.toml      Fly.io config
+Dockerfile    Container build (Northflank, Railway, etc.)
+fly.toml      Fly.io config (optional, paid)
 ```
 
 ## License
