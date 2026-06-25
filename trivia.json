@@ -1,0 +1,577 @@
+[
+  {
+    "question": "What year was the original Doom released?",
+    "answer": "1993",
+    "category": "Games"
+  },
+  {
+    "question": "What company developed Doom?",
+    "answer": "id software",
+    "category": "Games"
+  },
+  {
+    "question": "What is Mario's brother's name?",
+    "answer": "luigi",
+    "category": "Games"
+  },
+  {
+    "question": "What planet does the Halo series primarily take place on?",
+    "answer": "halo",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of Link's sword in Zelda?",
+    "answer": "master sword",
+    "category": "Games"
+  },
+  {
+    "question": "What year was the NES released in North America?",
+    "answer": "1985",
+    "category": "Games"
+  },
+  {
+    "question": "What is the best-selling video game of all time?",
+    "answer": "minecraft",
+    "category": "Games"
+  },
+  {
+    "question": "In Pac-Man, what color is Blinky the ghost?",
+    "answer": "red",
+    "category": "Games"
+  },
+  {
+    "question": "What franchise features Master Chief?",
+    "answer": "halo",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of Sonic the Hedgehog's sidekick?",
+    "answer": "tails",
+    "category": "Games"
+  },
+  {
+    "question": "What game popularized the battle royale genre?",
+    "answer": "pubg",
+    "category": "Games"
+  },
+  {
+    "question": "What is the main villain in the original Super Mario Bros?",
+    "answer": "bowser",
+    "category": "Games"
+  },
+  {
+    "question": "What company makes the PlayStation?",
+    "answer": "sony",
+    "category": "Games"
+  },
+  {
+    "question": "What game engine powers Fortnite?",
+    "answer": "unreal engine",
+    "category": "Games"
+  },
+  {
+    "question": "In Tetris, how many squares make a tetromino?",
+    "answer": "4",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the princess in The Legend of Zelda?",
+    "answer": "zelda",
+    "category": "Games"
+  },
+  {
+    "question": "What year was World of Warcraft released?",
+    "answer": "2004",
+    "category": "Games"
+  },
+  {
+    "question": "What game features the character Geralt of Rivia?",
+    "answer": "the witcher",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the overworld in Minecraft?",
+    "answer": "overworld",
+    "category": "Games"
+  },
+  {
+    "question": "What fighting game features Ryu and Ken?",
+    "answer": "street fighter",
+    "category": "Games"
+  },
+  {
+    "question": "What is the currency in Animal Crossing called?",
+    "answer": "bells",
+    "category": "Games"
+  },
+  {
+    "question": "What company created Half-Life?",
+    "answer": "valve",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the main ship in Galaga?",
+    "answer": "fighter",
+    "category": "Games"
+  },
+  {
+    "question": "In Pokemon, what type is Pikachu?",
+    "answer": "electric",
+    "category": "Games"
+  },
+  {
+    "question": "What year was the original PlayStation released?",
+    "answer": "1994",
+    "category": "Games"
+  },
+  {
+    "question": "What game series features Solid Snake?",
+    "answer": "metal gear solid",
+    "category": "Games"
+  },
+  {
+    "question": "What is the highest level in classic Pac-Man?",
+    "answer": "256",
+    "category": "Games"
+  },
+  {
+    "question": "What company developed The Elder Scrolls V: Skyrim?",
+    "answer": "bethesda",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the city in Grand Theft Auto V?",
+    "answer": "los santos",
+    "category": "Games"
+  },
+  {
+    "question": "What handheld console did Nintendo release in 1989?",
+    "answer": "game boy",
+    "category": "Games"
+  },
+  {
+    "question": "What game features the character Kratos?",
+    "answer": "god of war",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the villain in Half-Life?",
+    "answer": "g-man",
+    "category": "Games"
+  },
+  {
+    "question": "What racing game features the Blue Falcon?",
+    "answer": "f-zero",
+    "category": "Games"
+  },
+  {
+    "question": "What year was Super Mario 64 released?",
+    "answer": "1996",
+    "category": "Games"
+  },
+  {
+    "question": "What game popularized the phrase 'finish him'?",
+    "answer": "mortal kombat",
+    "category": "Games"
+  },
+  {
+    "question": "What is the main resource in StarCraft called?",
+    "answer": "minerals",
+    "category": "Games"
+  },
+  {
+    "question": "What company makes the Xbox?",
+    "answer": "microsoft",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the dragon in Skyrim you fight early on?",
+    "answer": "alduin",
+    "category": "Games"
+  },
+  {
+    "question": "What genre is Dark Souls?",
+    "answer": "action rpg",
+    "category": "Games"
+  },
+  {
+    "question": "What is the default name of the protagonist in Fallout 3?",
+    "answer": "lone wanderer",
+    "category": "Games"
+  },
+  {
+    "question": "What game features a character named Cloud Strife?",
+    "answer": "final fantasy vii",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the island in Animal Crossing?",
+    "answer": "island",
+    "category": "Games"
+  },
+  {
+    "question": "What year was Pong released?",
+    "answer": "1972",
+    "category": "Games"
+  },
+  {
+    "question": "What company developed Overwatch?",
+    "answer": "blizzard",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the main character in Metroid?",
+    "answer": "samus",
+    "category": "Games"
+  },
+  {
+    "question": "What game features a plumber jumping on Goombas?",
+    "answer": "super mario bros",
+    "category": "Games"
+  },
+  {
+    "question": "What is the max players in a standard Among Us lobby?",
+    "answer": "15",
+    "category": "Games"
+  },
+  {
+    "question": "What game series is set in the continent of Tamriel?",
+    "answer": "elder scrolls",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the AI companion in Portal?",
+    "answer": "glados",
+    "category": "Games"
+  },
+  {
+    "question": "What year was the Sega Genesis released in the US?",
+    "answer": "1989",
+    "category": "Games"
+  },
+  {
+    "question": "What game features a character named CJ?",
+    "answer": "gta san andreas",
+    "category": "Games"
+  },
+  {
+    "question": "What is the name of the zombie virus in Resident Evil?",
+    "answer": "t-virus",
+    "category": "Games"
+  },
+  {
+    "question": "What company created the game Roblox?",
+    "answer": "roblox corporation",
+    "category": "Games"
+  },
+  {
+    "question": "What is the main character's name in Hollow Knight?",
+    "answer": "the knight",
+    "category": "Games"
+  },
+  {
+    "question": "What game features a battle bus?",
+    "answer": "fortnite",
+    "category": "Games"
+  },
+  {
+    "question": "What protocol does IRC traditionally use?",
+    "answer": "tcp",
+    "category": "Tech"
+  },
+  {
+    "question": "What is the default IRC port?",
+    "answer": "6667",
+    "category": "Tech"
+  },
+  {
+    "question": "What does CPU stand for?",
+    "answer": "central processing unit",
+    "category": "Tech"
+  },
+  {
+    "question": "What does HTML stand for?",
+    "answer": "hypertext markup language",
+    "category": "Tech"
+  },
+  {
+    "question": "What year was the World Wide Web invented?",
+    "answer": "1989",
+    "category": "Tech"
+  },
+  {
+    "question": "Who founded Microsoft?",
+    "answer": "bill gates",
+    "category": "Tech"
+  },
+  {
+    "question": "What does RAM stand for?",
+    "answer": "random access memory",
+    "category": "Tech"
+  },
+  {
+    "question": "What programming language was created by Guido van Rossum?",
+    "answer": "python",
+    "category": "Tech"
+  },
+  {
+    "question": "What does USB stand for?",
+    "answer": "universal serial bus",
+    "category": "Tech"
+  },
+  {
+    "question": "What company makes the iPhone?",
+    "answer": "apple",
+    "category": "Tech"
+  },
+  {
+    "question": "What does SSD stand for?",
+    "answer": "solid state drive",
+    "category": "Tech"
+  },
+  {
+    "question": "What port does HTTPS use by default?",
+    "answer": "443",
+    "category": "Tech"
+  },
+  {
+    "question": "What does DNS stand for?",
+    "answer": "domain name system",
+    "category": "Tech"
+  },
+  {
+    "question": "What language runs in the browser alongside HTML and CSS?",
+    "answer": "javascript",
+    "category": "Tech"
+  },
+  {
+    "question": "What year was Linux first released?",
+    "answer": "1991",
+    "category": "Tech"
+  },
+  {
+    "question": "Who created Linux?",
+    "answer": "linus torvalds",
+    "category": "Tech"
+  },
+  {
+    "question": "What does GPU stand for?",
+    "answer": "graphics processing unit",
+    "category": "Tech"
+  },
+  {
+    "question": "What company owns GitHub?",
+    "answer": "microsoft",
+    "category": "Tech"
+  },
+  {
+    "question": "What does API stand for?",
+    "answer": "application programming interface",
+    "category": "Tech"
+  },
+  {
+    "question": "What is the loopback IP address?",
+    "answer": "127.0.0.1",
+    "category": "Tech"
+  },
+  {
+    "question": "What does HTTP stand for?",
+    "answer": "hypertext transfer protocol",
+    "category": "Tech"
+  },
+  {
+    "question": "What port does HTTP use by default?",
+    "answer": "80",
+    "category": "Tech"
+  },
+  {
+    "question": "What does SQL stand for?",
+    "answer": "structured query language",
+    "category": "Tech"
+  },
+  {
+    "question": "What company developed the Android OS?",
+    "answer": "google",
+    "category": "Tech"
+  },
+  {
+    "question": "What does VPN stand for?",
+    "answer": "virtual private network",
+    "category": "Tech"
+  },
+  {
+    "question": "What encryption protocol secures most websites?",
+    "answer": "tls",
+    "category": "Tech"
+  },
+  {
+    "question": "What does IoT stand for?",
+    "answer": "internet of things",
+    "category": "Tech"
+  },
+  {
+    "question": "What is the binary number 1010 in decimal?",
+    "answer": "10",
+    "category": "Tech"
+  },
+  {
+    "question": "What does BIOS stand for?",
+    "answer": "basic input output system",
+    "category": "Tech"
+  },
+  {
+    "question": "What company makes GeForce graphics cards?",
+    "answer": "nvidia",
+    "category": "Tech"
+  },
+  {
+    "question": "What does LAN stand for?",
+    "answer": "local area network",
+    "category": "Tech"
+  },
+  {
+    "question": "What does WAN stand for?",
+    "answer": "wide area network",
+    "category": "Tech"
+  },
+  {
+    "question": "What is the file extension for JavaScript modules in Node?",
+    "answer": "js",
+    "category": "Tech"
+  },
+  {
+    "question": "What does SSH stand for?",
+    "answer": "secure shell",
+    "category": "Tech"
+  },
+  {
+    "question": "What port does SSH use by default?",
+    "answer": "22",
+    "category": "Tech"
+  },
+  {
+    "question": "What company created the C programming language?",
+    "answer": "bell labs",
+    "category": "Tech"
+  },
+  {
+    "question": "What does JSON stand for?",
+    "answer": "javascript object notation",
+    "category": "Tech"
+  },
+  {
+    "question": "What year was the first iPhone released?",
+    "answer": "2007",
+    "category": "Tech"
+  },
+  {
+    "question": "What does OCR stand for?",
+    "answer": "optical character recognition",
+    "category": "Tech"
+  },
+  {
+    "question": "What is the maximum value of a byte?",
+    "answer": "255",
+    "category": "Tech"
+  },
+  {
+    "question": "What does RAID stand for in storage?",
+    "answer": "redundant array of independent disks",
+    "category": "Tech"
+  },
+  {
+    "question": "What company makes Ryzen processors?",
+    "answer": "amd",
+    "category": "Tech"
+  },
+  {
+    "question": "What does CSS stand for?",
+    "answer": "cascading style sheets",
+    "category": "Tech"
+  },
+  {
+    "question": "What protocol does email sending use?",
+    "answer": "smtp",
+    "category": "Tech"
+  },
+  {
+    "question": "What does FTP stand for?",
+    "answer": "file transfer protocol",
+    "category": "Tech"
+  },
+  {
+    "question": "What is the name of Google's mobile OS?",
+    "answer": "android",
+    "category": "Tech"
+  },
+  {
+    "question": "What does URL stand for?",
+    "answer": "uniform resource locator",
+    "category": "Tech"
+  },
+  {
+    "question": "What language is DoomChat II server written in?",
+    "answer": "go",
+    "category": "Tech"
+  },
+  {
+    "question": "What terminal emulator library powers DoomChat II?",
+    "answer": "xterm.js",
+    "category": "Tech"
+  },
+  {
+    "question": "What hash algorithm is used for tripcodes?",
+    "answer": "sha-256",
+    "category": "Tech"
+  },
+  {
+    "question": "What encryption mode is used in private rooms?",
+    "answer": "aes-gcm",
+    "category": "Tech"
+  },
+  {
+    "question": "What is the default public room in DoomChat II?",
+    "answer": "#lobby",
+    "category": "Tech"
+  },
+  {
+    "question": "What does BBS stand for?",
+    "answer": "bulletin board system",
+    "category": "Tech"
+  },
+  {
+    "question": "What does ASCII stand for?",
+    "answer": "american standard code for information interchange",
+    "category": "Tech"
+  },
+  {
+    "question": "What company created the transistor?",
+    "answer": "bell labs",
+    "category": "Tech"
+  },
+  {
+    "question": "What does GUI stand for?",
+    "answer": "graphical user interface",
+    "category": "Tech"
+  },
+  {
+    "question": "What is the name of Amazon's cloud platform?",
+    "answer": "aws",
+    "category": "Tech"
+  },
+  {
+    "question": "What does IPv6 use to separate groups?",
+    "answer": "colons",
+    "category": "Tech"
+  },
+  {
+    "question": "What does MAC stand for in networking?",
+    "answer": "media access control",
+    "category": "Tech"
+  },
+  {
+    "question": "What open protocol does DoomChat II use for real-time chat?",
+    "answer": "websocket",
+    "category": "Tech"
+  }
+]

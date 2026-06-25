@@ -1,0 +1,123 @@
+:root {
+  --bg: #000000;
+  --fg: #00ff00;
+  --system: #00aa00;
+  --error: #ff0000;
+  --highlight: #00ff00;
+  --font: "Courier New", Courier, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
+}
+
+body {
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  min-height: 100vh;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--system);
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 1rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.status {
+  font-size: 0.75rem;
+  color: var(--system);
+}
+
+.terminal-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--system);
+}
+
+.system-pane {
+  border-right: none;
+}
+
+.pane-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  padding: 0.25rem 0.5rem;
+  color: var(--system);
+  border-bottom: 1px solid var(--system);
+}
+
+.terminal-host {
+  flex: 1;
+  min-height: 0;
+  padding: 0.25rem;
+}
+
+.terminal-host .xterm {
+  height: 100%;
+}
+
+.input-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--system);
+  background: var(--bg);
+}
+
+.prompt {
+  color: var(--highlight);
+  font-weight: bold;
+}
+
+#cmd-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--fg);
+  font-family: var(--font);
+  font-size: 0.9rem;
+  outline: none;
+}
+
+#cmd-input::placeholder {
+  color: var(--system);
+  opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+  .terminal-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: 2fr 1fr;
+  }
+  .pane {
+    border-right: none;
+    border-bottom: 1px solid var(--system);
+  }
+}
