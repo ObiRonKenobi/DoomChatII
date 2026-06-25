@@ -55,81 +55,56 @@ Environment variables (see [`.env.example`](.env.example)):
 - **Client:** Static HTML/CSS/JS — dual xterm panes (chat 2/3, system 1/3)
 - **Sessions:** Client UUID in localStorage; server restores nick/rooms on WS reconnect within 30s
 
-## Deploy (Oracle Cloud + Cloudflare — recommended)
+## Deploy (Oracle Cloud — public IP)
 
-**Cost:** $0 on OCI Always Free + $0 on Cloudflare (quick tunnel or named tunnel).  
-**URL:** `https://random.trycloudflare.com` (quick) or `https://chat.yourdomain.com` (stable).
+**Cost:** $0 (Always Free VM). **URL:** `http://YOUR_PUBLIC_IP:8080` (no domain or Cloudflare needed to start).
 
-> **Oracle note:** OCI signup may ask for a credit card for identity verification; you are not charged if you stay within Always Free limits.  
-> **Cloudflare note:** A free Cloudflare account does **not** require a credit card.
+> OCI signup may ask for a credit card for identity verification; stay within Always Free limits to avoid charges.
 
-### Overview
-
-```text
-Browser ──HTTPS/WSS──► Cloudflare Tunnel ──► VM:8080 ──► DoomChat Docker
-                              ▲
-                         (outbound only;
-                      no open port 8080 needed)
-```
-
-### Part A — Create Oracle Always Free VM
+### 1. Create the VM
 
 1. Sign up at [oracle.com/cloud/free](https://www.oracle.com/cloud/free/)
 2. **Compute → Instances → Create instance**
-3. **Name:** `doomchat`
-4. **Image:** Ubuntu 22.04 (Always Free eligible)
-5. **Shape:** `VM.Standard.A1.Flex` — 1 OCPU, 6 GB RAM (or 2/12 if capacity allows)
-   - If **Out of capacity**, try another availability domain or region, or use `VM.Standard.E2.1.Micro` (AMD, slower)
-6. **Networking:** assign a **public IPv4**
-7. **SSH keys:** paste your public key (`~/.ssh/id_ed25519.pub`)
-8. **Create**
+3. **Ubuntu 22.04**, shape **VM.Standard.A1.Flex** (1 OCPU / 6 GB) or **E2.1.Micro** if out of capacity
+4. Assign a **public IPv4**, paste your **SSH public key**
+5. **Create** — note the public IP (e.g. `129.146.x.x`)
 
-**Security list (firewall):** allow **SSH (22)** from your IP. You do **not** need to open 8080 — Cloudflare connects outbound.
+### 2. Open firewall ports
 
-SSH in:
+On the instance’s subnet **Security list**, add ingress rules:
+
+| Source | Port | Purpose |
+|--------|------|---------|
+| `YOUR_IP/32` | 22 | SSH |
+| `0.0.0.0/0` | 8080 | DoomChat (HTTP + WebSocket) |
+
+For testing you can use `0.0.0.0/0` on 8080; tighten to your IP later if you prefer.
+
+Also check **Ubuntu firewall** on the VM if enabled: `sudo ufw allow 8080/tcp`
+
+### 3. Install and run
 
 ```bash
-ssh ubuntu@YOUR_VM_PUBLIC_IP
-```
+ssh ubuntu@YOUR_PUBLIC_IP
 
-### Part B — Install DoomChat on the VM
-
-```bash
 git clone https://github.com/ObiRonKenobi/DoomChatII.git /opt/doomchat-ii
 cd /opt/doomchat-ii
 chmod +x deploy/*.sh
 ./deploy/setup-vm.sh
-curl -s http://127.0.0.1:8080/health   # → ok
-```
 
-### Part C — Cloudflare Tunnel (pick one)
-
-#### Option 1: Quick tunnel (easiest, no domain)
-
-No Cloudflare domain setup. Random free HTTPS URL.
-
-```bash
-cd /opt/doomchat-ii
-./deploy/setup-cloudflared-quick.sh
-sudo journalctl -u cloudflared-doomchat.service -n 30   # find https://....trycloudflare.com
-```
-
-Set `BASE_URL` and restart:
-
-```bash
-echo 'BASE_URL=https://YOUR-trycloudflare-URL' > .env
+echo "BASE_URL=http://YOUR_PUBLIC_IP:8080" > .env
 docker compose up -d
 ```
 
-**Catch:** URL changes if the tunnel service restarts.
+### 4. Use it
 
-#### Option 2: Named tunnel (stable URL, needs a domain)
+Open in browser: **http://YOUR_PUBLIC_IP:8080**
 
-1. Create a **free Cloudflare account** at [dash.cloudflare.com](https://dash.cloudflare.com)
-2. Add your domain (Cloudflare free plan)
-3. On your **local machine** (with a browser): `cloudflared tunnel login`
-4. Copy credentials to the VM: `scp -r ~/.cloudflared ubuntu@YOUR_VM_IP:~/.cloudflared`
-5. On the VM: `./deploy/setup-cloudflared-named.sh chat.yourdomain.com`
+WebSocket connects automatically as `ws://YOUR_PUBLIC_IP:8080/ws`.
+
+```bash
+curl http://YOUR_PUBLIC_IP:8080/health   # → ok
+```
 
 ### Updates
 
@@ -137,7 +112,9 @@ docker compose up -d
 cd /opt/doomchat-ii && git pull && docker compose build && docker compose up -d
 ```
 
-See [`deploy/`](deploy/) for setup scripts.
+### Optional later: HTTPS + domain
+
+Add Cloudflare (quick or named tunnel) when you want `https://` — see [`deploy/`](deploy/) scripts. Not required for IP-only testing.
 
 ---
 

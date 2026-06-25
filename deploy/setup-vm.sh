@@ -35,8 +35,12 @@ docker compose build
 docker compose up -d
 
 echo ""
-echo "DoomChat II is running on http://127.0.0.1:8080"
-echo "Health: curl -s http://127.0.0.1:8080/health"
+echo "DoomChat II is running on port 8080"
+echo "Health (on VM): curl -s http://127.0.0.1:8080/health"
 echo ""
-echo "Next: run deploy/setup-cloudflared-quick.sh  (no domain, free, URL changes on restart)"
-echo "  or deploy/setup-cloudflared-named.sh       (stable URL, needs domain on Cloudflare)"
+echo "Public access: open TCP 8080 in your OCI security list, then:"
+echo "  echo 'BASE_URL=http://YOUR_PUBLIC_IP:8080' > .env"
+echo "  docker compose up -d"
+echo "  open http://YOUR_PUBLIC_IP:8080"
+echo ""
+echo "Optional later: Cloudflare named tunnel for HTTPS — see README"
