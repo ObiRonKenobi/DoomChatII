@@ -55,76 +55,89 @@ Environment variables (see [`.env.example`](.env.example)):
 - **Client:** Static HTML/CSS/JS — dual xterm panes (chat 2/3, system 1/3)
 - **Sessions:** Client UUID in localStorage; server restores nick/rooms on WS reconnect within 30s
 
-## Deploy (Northflank — recommended)
+## Deploy (Oracle Cloud + Cloudflare — recommended)
 
-Free **always-on** sandbox (2 services, no sleep). Good fit for WebSocket chat.
+**Cost:** $0 on OCI Always Free + $0 on Cloudflare (quick tunnel or named tunnel).  
+**URL:** `https://random.trycloudflare.com` (quick) or `https://chat.yourdomain.com` (stable).
 
-### 1. Sign up and connect GitHub
+> **Oracle note:** OCI signup may ask for a credit card for identity verification; you are not charged if you stay within Always Free limits.  
+> **Cloudflare note:** A free Cloudflare account does **not** require a credit card.
 
-1. Go to [northflank.com](https://northflank.com) and create an account (Developer Sandbox).
-2. **Account → VCS** → connect **GitHub** → authorize `ObiRonKenobi/DoomChatII`.
-
-### 2. Create project and service
-
-1. **Create project** (e.g. `doomchat`).
-2. **Add service → Combined service** (build + deploy in one).
-3. **Source:** GitHub → `ObiRonKenobi/DoomChatII` → branch `main`.
-4. **Build:** Dockerfile → path `/Dockerfile`, context `/`.
-
-### 3. Runtime settings
-
-| Setting | Value |
-|---------|--------|
-| **Port** | `8080`, protocol **HTTP**, **public** |
-| **Health check** | path `/health` |
-| **Compute** | smallest sandbox plan (enough for chat MVP) |
-
-**Environment variables:**
-
-| Key | Value |
-|-----|--------|
-| `PORT` | `8080` |
-| `DATA_DIR` | `/data` |
-| `BASE_URL` | `https://YOUR-SERVICE-URL` (set after first deploy — see below) |
-
-### 4. Persistent volume (message boards)
-
-On the service → **Volumes**:
-
-- Add volume (1 GB is plenty)
-- **Container mount path:** `/data`
-
-This keeps SQLite boards across restarts.
-
-### 5. Deploy
-
-Click **Create service** / **Deploy**. First build takes a few minutes.
-
-### 6. Your public URL
-
-Northflank assigns HTTPS automatically, e.g.:
+### Overview
 
 ```text
-https://p01--doomchat--xxxxxx.code.run
+Browser ──HTTPS/WSS──► Cloudflare Tunnel ──► VM:8080 ──► DoomChat Docker
+                              ▲
+                         (outbound only;
+                      no open port 8080 needed)
 ```
 
-Find it under **Ports & DNS** on the service page.
+### Part A — Create Oracle Always Free VM
 
-Then update `BASE_URL` to that URL and redeploy (or edit env var and restart).
+1. Sign up at [oracle.com/cloud/free](https://www.oracle.com/cloud/free/)
+2. **Compute → Instances → Create instance**
+3. **Name:** `doomchat`
+4. **Image:** Ubuntu 22.04 (Always Free eligible)
+5. **Shape:** `VM.Standard.A1.Flex` — 1 OCPU, 6 GB RAM (or 2/12 if capacity allows)
+   - If **Out of capacity**, try another availability domain or region, or use `VM.Standard.E2.1.Micro` (AMD, slower)
+6. **Networking:** assign a **public IPv4**
+7. **SSH keys:** paste your public key (`~/.ssh/id_ed25519.pub`)
+8. **Create**
 
-WebSocket URL will be `wss://p01--doomchat--xxxxxx.code.run/ws` (same host, auto TLS).
+**Security list (firewall):** allow **SSH (22)** from your IP. You do **not** need to open 8080 — Cloudflare connects outbound.
 
-### 7. Verify
+SSH in:
 
 ```bash
-curl https://YOUR-SERVICE-URL/health   # → ok
+ssh ubuntu@YOUR_VM_PUBLIC_IP
 ```
 
-Open the URL in a browser, set a nick, chat in `#lobby`.
+### Part B — Install DoomChat on the VM
 
-### Custom domain (optional)
+```bash
+git clone https://github.com/ObiRonKenobi/DoomChatII.git /opt/doomchat-ii
+cd /opt/doomchat-ii
+chmod +x deploy/*.sh
+./deploy/setup-vm.sh
+curl -s http://127.0.0.1:8080/health   # → ok
+```
 
-**Account → Domains** → add your domain → link it to the public port on this service.
+### Part C — Cloudflare Tunnel (pick one)
+
+#### Option 1: Quick tunnel (easiest, no domain)
+
+No Cloudflare domain setup. Random free HTTPS URL.
+
+```bash
+cd /opt/doomchat-ii
+./deploy/setup-cloudflared-quick.sh
+sudo journalctl -u cloudflared-doomchat.service -n 30   # find https://....trycloudflare.com
+```
+
+Set `BASE_URL` and restart:
+
+```bash
+echo 'BASE_URL=https://YOUR-trycloudflare-URL' > .env
+docker compose up -d
+```
+
+**Catch:** URL changes if the tunnel service restarts.
+
+#### Option 2: Named tunnel (stable URL, needs a domain)
+
+1. Create a **free Cloudflare account** at [dash.cloudflare.com](https://dash.cloudflare.com)
+2. Add your domain (Cloudflare free plan)
+3. On your **local machine** (with a browser): `cloudflared tunnel login`
+4. Copy credentials to the VM: `scp -r ~/.cloudflared ubuntu@YOUR_VM_IP:~/.cloudflared`
+5. On the VM: `./deploy/setup-cloudflared-named.sh chat.yourdomain.com`
+
+### Updates
+
+```bash
+cd /opt/doomchat-ii && git pull && docker compose build && docker compose up -d
+```
+
+See [`deploy/`](deploy/) for setup scripts.
 
 ---
 
