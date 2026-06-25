@@ -152,8 +152,10 @@ trivia.go     Trivia bot
 protocol.go   Wire message types
 web/          Frontend (xterm.js)
 trivia.json   Question bank
-Dockerfile    Container build (Northflank, Railway, etc.)
-fly.toml      Fly.io config (optional, paid)
+Dockerfile         Container build
+docker-compose.yml Local / VM deploy
+deploy/            Oracle + Cloudflare setup scripts
+fly.toml           Fly.io config (optional, paid)
 ```
 
 ## License
