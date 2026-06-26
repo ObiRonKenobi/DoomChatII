@@ -33,6 +33,17 @@
     ''
   ];
 
+  function randomUUID() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === 'x' ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
   let settings = loadSettings();
   let ws = null;
   let reconnectAttempts = 0;
@@ -83,7 +94,7 @@
           theme: s.theme || 'matrix',
           font: s.font || 'Courier New',
           last_nick: s.last_nick || '',
-          session_id: s.session_id || crypto.randomUUID()
+          session_id: s.session_id || randomUUID()
         };
       }
     } catch (_) {}
@@ -91,7 +102,7 @@
       theme: 'matrix',
       font: 'Courier New',
       last_nick: '',
-      session_id: crypto.randomUUID()
+      session_id: randomUUID()
     };
   }
 
