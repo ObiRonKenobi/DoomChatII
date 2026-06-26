@@ -102,8 +102,25 @@ func validateNick(nick string) bool {
 	if nick == "" || utf8.RuneCountInString(nick) > maxNickLen {
 		return false
 	}
-	if strings.ContainsAny(nick, " \t\r\n") {
+	if strings.ContainsAny(nick, " \t\r\n#") {
 		return false
+	}
+	bang := strings.Index(nick, "!")
+	if bang >= 0 {
+		if bang == 0 {
+			return false
+		}
+		name := nick[:bang]
+		trip := nick[bang+1:]
+		if name == "" || len(trip) != 8 {
+			return false
+		}
+		for i := 0; i < 8; i++ {
+			c := trip[i]
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f')) {
+				return false
+			}
+		}
 	}
 	return true
 }

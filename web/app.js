@@ -6,14 +6,14 @@
   const MAX_RECONNECTS = 10;
 
   const THEMES = {
-    matrix:  { bg: '#000000', fg: '#00FF00', system: '#00AA00', error: '#FF0000', highlight: '#00FF00' },
-    amber:   { bg: '#000000', fg: '#FFB000', system: '#CC8800', error: '#FF4444', highlight: '#FFD700' },
-    cobalt:  { bg: '#000000', fg: '#4488FF', system: '#3366CC', error: '#FF6666', highlight: '#66AAFF' },
-    snow:    { bg: '#000000', fg: '#FFFFFF', system: '#AAAAAA', error: '#FF4444', highlight: '#FFFFFF' },
-    vintage: { bg: '#2B1B0E', fg: '#33FF33', system: '#228B22', error: '#FF6666', highlight: '#55FF55' },
-    dracula: { bg: '#282a36', fg: '#f8f8f2', system: '#bd93f9', error: '#ff5555', highlight: '#50fa7b' },
-    spawn:   { bg: '#0a0a0a', fg: '#39FF14', system: '#8B0000', error: '#FF2200', highlight: '#C0C0C0' },
-    merica:  { bg: '#002868', fg: '#FFFFFF', system: '#BF0A30', error: '#FF6666', highlight: '#BF0A30' }
+    matrix:  { bg: '#000000', fg: '#00FF00', system: '#00AA00', error: '#FF0000', highlight: '#00FF00', tripcode: '#00AA00' },
+    amber:   { bg: '#000000', fg: '#FFB000', system: '#CC8800', error: '#FF4444', highlight: '#FFD700', tripcode: '#FFD700' },
+    cobalt:  { bg: '#000000', fg: '#4488FF', system: '#3366CC', error: '#FF6666', highlight: '#66AAFF', tripcode: '#66AAFF' },
+    snow:    { bg: '#000000', fg: '#FFFFFF', system: '#AAAAAA', error: '#FF4444', highlight: '#FFFFFF', tripcode: '#AAAAAA' },
+    vintage: { bg: '#2B1B0E', fg: '#33FF33', system: '#228B22', error: '#FF6666', highlight: '#55FF55', tripcode: '#228B22' },
+    dracula: { bg: '#282a36', fg: '#f8f8f2', system: '#bd93f9', error: '#ff5555', highlight: '#50fa7b', tripcode: '#bd93f9' },
+    spawn:   { bg: '#0a0a0a', fg: '#39FF14', system: '#8B0000', error: '#FF2200', highlight: '#C0C0C0', tripcode: '#C0C0C0' },
+    merica:  { bg: '#002868', fg: '#FFFFFF', system: '#BF0A30', error: '#FF6666', highlight: '#BF0A30', tripcode: '#BF0A30' }
   };
 
   const FONTS = {
@@ -195,6 +195,7 @@
     document.documentElement.style.setProperty('--system', t.system);
     document.documentElement.style.setProperty('--error', t.error);
     document.documentElement.style.setProperty('--highlight', t.highlight);
+    document.documentElement.style.setProperty('--tripcode', t.tripcode);
     chatTerm.options.theme = termTheme();
     systemTerm.options.theme = termTheme();
     saveSettings();
@@ -311,7 +312,7 @@
         break;
       case 'trivia_answer':
         if (msg.winner) {
-          writelnChat('[Trivia] ' + msg.winner + ' got it! Answer: ' + msg.answer);
+          writelnChat('[Trivia] ' + formatNickColored(msg.winner, false) + ' got it! Answer: ' + msg.answer);
         } else {
           writelnChat('[Trivia] Time\'s up! Answer: ' + msg.answer);
         }
@@ -353,7 +354,29 @@
     }
     const ts = formatTimestamp(msg.timestamp);
     const prefix = ts ? '[' + ts + '] ' : '';
-    writelnChat(prefix + '<' + msg.nick + '> ' + text);
+    writelnChat(prefix + formatNickColored(msg.nick, true) + ' ' + text);
+  }
+
+  function ansiFg(hex) {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return '\x1b[38;2;' + r + ';' + g + ';' + b + 'm';
+  }
+
+  function formatNickColored(nick, wrapBrackets) {
+    const bang = nick.indexOf('!');
+    const t = THEMES[settings.theme] || THEMES.matrix;
+    const reset = '\x1b[0m';
+    const nameColor = ansiFg(t.fg);
+    const tripColor = ansiFg(t.tripcode);
+    let inner;
+    if (bang < 0) {
+      inner = nameColor + nick + reset;
+    } else {
+      inner = nameColor + nick.slice(0, bang) + tripColor + nick.slice(bang) + reset;
+    }
+    return wrapBrackets ? '<' + inner + '>' : inner;
   }
 
   function formatTimestamp(ms) {
@@ -466,14 +489,18 @@
         const arg = line.slice(5).trim();
         const trip = await parseTripcode(arg);
         if (!trip) {
-          writelnSystem('Usage: /nick YourName#secret', true);
+          if (arg.includes('!')) {
+            writelnSystem('Cannot paste a tripcode. Use /nick YourName#secret', true);
+          } else {
+            writelnSystem('Usage: /nick YourName#secret', true);
+          }
           return;
         }
         fullNick = trip.display;
         settings.last_nick = trip.name;
         saveSettings();
         send({ type: 'nick', nick: fullNick });
-        writelnSystem('Nick set locally to ' + fullNick);
+        writelnSystem('Nick set locally to ' + formatNickColored(fullNick, false));
         break;
       }
 
@@ -622,6 +649,9 @@
   }
 
   async function parseTripcode(input) {
+    if (input.includes('!')) {
+      return null;
+    }
     const idx = input.indexOf('#');
     if (idx <= 0) {
       if (!input) return null;
