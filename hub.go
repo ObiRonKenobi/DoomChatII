@@ -35,6 +35,7 @@ type Hub struct {
 	sessions   *SessionManager
 	db         *DB
 	trivia     *TriviaManager
+	history    *MessageLog
 	register   chan *Client
 	unregister chan *Client
 	mu         sync.RWMutex
@@ -49,6 +50,7 @@ func NewHub(db *DB, trivia *TriviaManager) *Hub {
 		sessions:   NewSessionManager(),
 		db:         db,
 		trivia:     trivia,
+		history:    NewMessageLog(),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		connRate:   make(map[string][]time.Time),
@@ -185,6 +187,14 @@ func (c *Client) joinRoom(h *Hub, roomName string) error {
 
 	room.Join(c)
 	c.sendSystem("Joined " + roomName)
+	if entries := h.history.GetRoomHistory(roomName); len(entries) > 0 {
+		c.Send(ServerMessage{
+			Type:    "history",
+			Target:  TargetChat,
+			Room:    roomName,
+			History: entries,
+		})
+	}
 	if nick != "" {
 		h.broadcastRoomSystem(roomName, nick+" has joined.")
 	}

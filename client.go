@@ -209,12 +209,16 @@ func (c *Client) handleChat(h *Hub, msg ClientMessage) {
 		return
 	}
 
+	now := time.Now().UTC()
+	h.history.Add(roomName, nick, msg.Text, msg.Enc)
+
 	out := ServerMessage{
-		Type:   "chat",
-		Target: TargetChat,
-		Room:   roomName,
-		Nick:   nick,
-		Text:   msg.Text,
+		Type:      "chat",
+		Target:    TargetChat,
+		Room:      roomName,
+		Nick:      nick,
+		Text:      msg.Text,
+		Timestamp: now.UnixMilli(),
 	}
 	room.Broadcast(out, nil)
 }

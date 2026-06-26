@@ -36,13 +36,22 @@ type ClientMessage struct {
 	Body      string `json:"body,omitempty"`
 }
 
+type HistoryEntry struct {
+	Nick      string `json:"nick"`
+	Text      string `json:"text"`
+	Timestamp int64  `json:"timestamp"`
+	Enc       bool   `json:"enc,omitempty"`
+}
+
 // Outbound to client.
 type ServerMessage struct {
-	Type     string         `json:"type"`
-	Target   string         `json:"target"`
-	Room     string         `json:"room,omitempty"`
-	Nick     string         `json:"nick,omitempty"`
-	Text     string         `json:"text,omitempty"`
+	Type      string         `json:"type"`
+	Target    string         `json:"target"`
+	Room      string         `json:"room,omitempty"`
+	Nick      string         `json:"nick,omitempty"`
+	Text      string         `json:"text,omitempty"`
+	Timestamp int64          `json:"timestamp,omitempty"`
+	History   []HistoryEntry `json:"history,omitempty"`
 	Rooms    []string       `json:"rooms,omitempty"`
 	Question string         `json:"question,omitempty"`
 	Number   int            `json:"number,omitempty"`

@@ -35,7 +35,7 @@ Environment variables (see [`.env.example`](.env.example)):
 | `/join #room password` | Join encrypted room (derive key) |
 | `/create private name pass` | Create password-encrypted room |
 | `/part [#room]` | Leave a room |
-| `/theme matrix` | Themes: matrix, amber, cobalt, snow, vintage, dracula, spawn |
+| `/theme matrix` | Themes: matrix, amber, cobalt, snow, vintage, dracula, spawn, merica |
 | `/font Fira Code` | Fonts: Courier New, IBM Plex Mono, Fira Code, JetBrains Mono, Lucida Console |
 | `/trivia` | Ask one random question (30s, answer revealed if unsolved) |
 | `/trivia start` / `stop` | Continuous random trivia game in chat pane |

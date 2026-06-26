@@ -12,7 +12,8 @@
     snow:    { bg: '#000000', fg: '#FFFFFF', system: '#AAAAAA', error: '#FF4444', highlight: '#FFFFFF' },
     vintage: { bg: '#2B1B0E', fg: '#33FF33', system: '#228B22', error: '#FF6666', highlight: '#55FF55' },
     dracula: { bg: '#282a36', fg: '#f8f8f2', system: '#bd93f9', error: '#ff5555', highlight: '#50fa7b' },
-    spawn:   { bg: '#0a0a0a', fg: '#39FF14', system: '#8B0000', error: '#FF2200', highlight: '#C0C0C0' }
+    spawn:   { bg: '#0a0a0a', fg: '#39FF14', system: '#8B0000', error: '#FF2200', highlight: '#C0C0C0' },
+    merica:  { bg: '#002868', fg: '#FFFFFF', system: '#BF0A30', error: '#FF6666', highlight: '#BF0A30' }
   };
 
   const FONTS = {
@@ -24,12 +25,12 @@
   };
 
   const BANNER = [
-    ' ██████╗  ██████╗  ██████╗ ███╗   ███╗ ██████╗██╗  ██╗ █████╗ ████████╗    ██╗██╗',
-    ' ██╔══██╗██╔═══██╗██╔═══██╗████╗ ████║██╔════╝██║  ██║██╔══██╗╚══██╔══╝    ██║██║',
-    ' ██║  ██║██║   ██║██║   ██║██╔████╔██║██║     ███████║███████║   ██║       ██║██║',
-    ' ██║  ██║██║   ██║██║   ██║██║╚██╔╝██║██║     ██╔══██║██╔══██║   ██║       ╚═╝╚═╝',
-    ' ██████╔╝╚██████╔╝╚██████╔╝██║ ╚═╝ ██║╚██████╗██║  ██║██║  ██║   ██║       ██╗██╗',
-    ' ╚═════╝  ╚═════╝  ╚═════╝ ╚═╝     ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝       ╚═╝╚═╝',
+    ' ██████╗  ██████╗  ██████╗ ███╗   ███╗ ██████╗██╗  ██╗ █████╗ ████████╗    ██╗ ██╗',
+    ' ██╔══██╗██╔═══██╗██╔═══██╗████╗ ████║██╔════╝██║  ██║██╔══██╗╚══██╔══╝    ██║ ██║',
+    ' ██║  ██║██║   ██║██║   ██║██╔████╔██║██║     ███████║███████║   ██║       ██║ ██║',
+    ' ██║  ██║██║   ██║██║   ██║██║╚██╔╝██║██║     ██╔══██║██╔══██║   ██║       ██║ ██║',
+    ' ██████╔╝╚██████╔╝╚██████╔╝██║ ╚═╝ ██║╚██████╗██║  ██║██║  ██║   ██║        ╚═╝ ╚═╝',
+    ' ╚═════╝  ╚═════╝  ╚═════╝ ╚═╝     ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝',
     ''
   ];
 
@@ -118,6 +119,8 @@
 
   const statusEl = document.getElementById('status');
   const inputEl = document.getElementById('cmd-input');
+  const bannerEl = document.getElementById('chat-banner');
+  bannerEl.textContent = BANNER.join('\n');
 
   const chatTerm = new Terminal({
     cursorBlink: false,
@@ -225,9 +228,10 @@
 
     ws.onopen = () => {
       reconnectAttempts = 0;
+      chatTerm.clear();
+      chatTerm.scrollToBottom();
       setStatus('connected');
       writelnSystem('Connected.');
-      showBanner();
       send({
         type: 'hello',
         session_id: settings.session_id,
@@ -278,7 +282,10 @@
   async function handleMessage(msg) {
     switch (msg.type) {
       case 'chat':
-        await handleChatMessage(msg);
+        await renderChatLine(msg);
+        break;
+      case 'history':
+        await renderHistory(msg);
         break;
       case 'system':
         writelnSystem(msg.text);
@@ -317,10 +324,24 @@
     }
   }
 
-  async function handleChatMessage(msg) {
+  async function renderHistory(msg) {
+    if (!msg.history || !msg.history.length) return;
+    for (const entry of msg.history) {
+      await renderChatLine({
+        nick: entry.nick,
+        text: entry.text,
+        timestamp: entry.timestamp,
+        room: msg.room,
+        enc: entry.enc
+      });
+    }
+    chatTerm.scrollToBottom();
+  }
+
+  async function renderChatLine(msg) {
     let text = msg.text;
     const room = msg.room || currentRoom;
-    if (isEncryptedRoom(room)) {
+    if (msg.enc || isEncryptedRoom(room)) {
       try {
         const key = roomKeys.get(room);
         if (key) text = await decryptText(text, key);
@@ -330,17 +351,36 @@
         return;
       }
     }
-    const line = '<' + msg.nick + '> ' + text;
-    writelnChat(line);
+    const ts = formatTimestamp(msg.timestamp);
+    const prefix = ts ? '[' + ts + '] ' : '';
+    writelnChat(prefix + '<' + msg.nick + '> ' + text);
+  }
+
+  function formatTimestamp(ms) {
+    if (!ms) return '';
+    const d = new Date(ms);
+    const time = d.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false
+    });
+    const now = new Date();
+    if (d.toDateString() !== now.toDateString()) {
+      return d.toLocaleDateString() + ' ' + time;
+    }
+    return time;
   }
 
   function writelnChat(text) {
     chatTerm.writeln(text);
+    chatTerm.scrollToBottom();
   }
 
   function writelnSystem(text, isError) {
     if (isError) systemTerm.writeln('\x1b[31m' + text + '\x1b[0m');
     else systemTerm.writeln(text);
+    systemTerm.scrollToBottom();
   }
 
   function formatScores(scores) {
@@ -351,12 +391,6 @@
   function formatRoomList(list) {
     if (!list || !list.length) return '(none)';
     return list.map(r => r.name + ' (' + r.count + ')').join(', ');
-  }
-
-  function showBanner() {
-    if (sessionStorage.getItem('doomchat_banner_shown')) return;
-    sessionStorage.setItem('doomchat_banner_shown', '1');
-    BANNER.forEach(line => chatTerm.writeln(line));
   }
 
   function isEncryptedRoom(room) {
@@ -412,7 +446,7 @@
           '/join room pass     — join encrypted room',
           '/part [#room]       — leave room',
           '/create private name pass — create E2EE room',
-          '/theme <name>       — matrix|amber|cobalt|snow|vintage|dracula|spawn',
+          '/theme <name>       — matrix|amber|cobalt|snow|vintage|dracula|spawn|merica',
           '/font <name>        — Courier New|IBM Plex Mono|Fira Code|JetBrains Mono|Lucida Console',
           '/trivia             — ask one random question (30s)',
           '/trivia start|stop  — continuous trivia game',
