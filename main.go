@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -47,7 +48,13 @@ func main() {
 	webDir := filepath.Join(".", "web")
 	if _, err := os.Stat(webDir); err == nil {
 		fs := http.FileServer(http.Dir(webDir))
-		mux.Handle("/", fs)
+		mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p := r.URL.Path
+			if strings.HasSuffix(p, ".js") || strings.HasSuffix(p, ".css") || strings.HasSuffix(p, ".html") {
+				w.Header().Set("Cache-Control", "no-cache, must-revalidate")
+			}
+			fs.ServeHTTP(w, r)
+		}))
 	}
 
 	srv := &http.Server{

@@ -2,42 +2,61 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>DoomChat II</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=1.5.3">
+  <script>
+    (function () {
+      function detectMobile() {
+        return window.innerWidth <= 768 ||
+          ((('ontouchstart' in window) || navigator.maxTouchPoints > 0) && window.innerWidth <= 1024);
+      }
+      if (detectMobile()) {
+        document.documentElement.classList.add('is-mobile');
+      }
+      window.__doomSetPane = function (pane) {
+        document.documentElement.classList.toggle('show-system', pane === 'system');
+        if (window.__doomChatSetPane) window.__doomChatSetPane(pane);
+        else window.__doomPendingPane = pane;
+      };
+    })();
+  </script>
 </head>
 <body>
-  <header class="header">
-    <h1>DoomChat II</h1>
-    <span id="status" class="status">connecting...</span>
-  </header>
-  <nav class="mobile-pane-toggle" aria-label="Switch output pane">
-    <button type="button" id="toggle-chat" class="pane-toggle active" data-pane="chat">CHAT</button>
-    <button type="button" id="toggle-system" class="pane-toggle" data-pane="system">SYSTEM</button>
-  </nav>
-  <main id="terminal-grid" class="terminal-grid">
-    <div id="chat-pane" class="pane chat-pane">
-      <div class="pane-label">CHAT</div>
-      <div class="chat-banner-wrap">
-        <pre id="chat-banner" class="chat-banner"></pre>
+  <div id="app-shell">
+    <header class="header">
+      <h1>DoomChat II</h1>
+      <span id="status" class="status">connecting...</span>
+    </header>
+    <nav class="mobile-pane-toggle" aria-label="Switch output pane">
+      <button type="button" id="toggle-chat" class="pane-toggle active" data-pane="chat" onclick="window.__doomSetPane('chat')">CHAT</button>
+      <button type="button" id="toggle-system" class="pane-toggle" data-pane="system" onclick="window.__doomSetPane('system')">SYSTEM</button>
+    </nav>
+    <main id="terminal-grid" class="terminal-grid">
+      <div id="chat-pane" class="pane chat-pane">
+        <div class="pane-label">CHAT</div>
+        <div class="chat-banner-wrap">
+          <pre id="chat-banner" class="chat-banner"></pre>
+        </div>
+        <div id="chat-terminal" class="terminal-host"></div>
       </div>
-      <div id="chat-terminal" class="terminal-host"></div>
-    </div>
-    <div id="system-pane" class="pane system-pane">
-      <div class="pane-label">SYSTEM</div>
-      <div id="system-terminal" class="terminal-host"></div>
-    </div>
-  </main>
-  <footer class="input-bar">
-    <span class="prompt">&gt;</span>
-    <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="type a message or /help">
-  </footer>
+      <div id="system-pane" class="pane system-pane">
+        <div class="pane-label">SYSTEM</div>
+        <div id="system-terminal" class="terminal-host"></div>
+      </div>
+    </main>
+    <footer class="input-bar">
+      <span class="prompt">&gt;</span>
+      <input id="cmd-input" type="text" autocomplete="off" spellcheck="false" placeholder="type a message or /help">
+    </footer>
+  </div>
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
-  <script src="app.js"></script>
+  <script src="app.js?v=1.5.3"></script>
 </body>
 </html>

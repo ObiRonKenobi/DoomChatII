@@ -1,6 +1,5 @@
-1.5.2
-Fix mobile pane toggle, swipe left/right between CHAT and SYSTEM, pinned input bar
-Word wrap at word boundaries on desktop and mobile (whole words move to next line)
-Mobile layout: banner pinned to top of chat, only one pane visible at a time
+1.5.3
+Rebuild mobile UI: one pane at a time, fixed input bar, working touch toggles and swipe
+Word wrap at word boundaries; banner pinned above chat scroll area
 /users command, persistent 24h chat history, tripcode coloring
 Reload the app (hard refresh) after updates to load the latest client

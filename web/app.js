@@ -124,13 +124,12 @@
   const bannerWrapEl = document.querySelector('.chat-banner-wrap');
   const toggleChatBtn = document.getElementById('toggle-chat');
   const toggleSystemBtn = document.getElementById('toggle-system');
-  const chatPane = document.getElementById('chat-pane');
-  const systemPane = document.getElementById('system-pane');
-  const terminalGrid = document.getElementById('terminal-grid');
   bannerEl.textContent = BANNER.join('\n');
 
   let mobilePane = 'chat';
-  const mobileQuery = window.matchMedia('(max-width: 768px), (pointer: coarse) and (max-width: 1024px)');
+  const FitAddonCtor = (typeof FitAddon !== 'undefined' && FitAddon.FitAddon)
+    ? FitAddon.FitAddon
+    : (typeof FitAddon !== 'undefined' ? FitAddon : null);
 
   const chatTerm = new Terminal({
     cursorBlink: false,
@@ -146,32 +145,41 @@
     scrollback: 3000,
     theme: termTheme()
   });
-  const chatFit = new FitAddon.FitAddon();
-  const systemFit = new FitAddon.FitAddon();
-  chatTerm.loadAddon(chatFit);
-  systemTerm.loadAddon(systemFit);
+  const chatFit = FitAddonCtor ? new FitAddonCtor() : null;
+  const systemFit = FitAddonCtor ? new FitAddonCtor() : null;
+  if (chatFit) chatTerm.loadAddon(chatFit);
+  if (systemFit) systemTerm.loadAddon(systemFit);
   chatTerm.open(document.getElementById('chat-terminal'));
   systemTerm.open(document.getElementById('system-terminal'));
 
+  window.__doomChatSetPane = setMobilePane;
+  if (window.__doomPendingPane) {
+    setMobilePane(window.__doomPendingPane);
+    window.__doomPendingPane = null;
+  }
+
   applyTheme(settings.theme);
   applyFont(settings.font);
+  updateMobileClass();
+  syncMobilePaneUI();
   fitTerminals();
   fitBanner();
-  applyPaneVisibility();
   initMobileSwipe();
 
   window.addEventListener('resize', () => {
+    updateMobileClass();
+    syncMobilePaneUI();
     fitTerminals();
     fitBanner();
-    applyPaneVisibility();
   });
-  mobileQuery.addEventListener('change', () => {
-    applyPaneVisibility();
-    fitBanner();
-    fitTerminals();
+  window.addEventListener('orientationchange', () => {
+    setTimeout(() => {
+      updateMobileClass();
+      syncMobilePaneUI();
+      fitTerminals();
+      fitBanner();
+    }, 150);
   });
-  bindPaneToggle(toggleChatBtn, 'chat');
-  bindPaneToggle(toggleSystemBtn, 'system');
   inputEl.addEventListener('keydown', onInputKey);
 
   connect();
@@ -233,30 +241,39 @@
   }
 
   function fitTerminals() {
-    chatFit.fit();
-    systemFit.fit();
+    try {
+      if (chatFit) chatFit.fit();
+      if (systemFit) systemFit.fit();
+    } catch (_) {}
   }
 
-  function bindPaneToggle(btn, pane) {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      setMobilePane(pane);
-    });
+  function detectMobile() {
+    return window.innerWidth <= 768 ||
+      ((('ontouchstart' in window) || navigator.maxTouchPoints > 0) && window.innerWidth <= 1024);
+  }
+
+  function updateMobileClass() {
+    document.documentElement.classList.toggle('is-mobile', detectMobile());
+  }
+
+  function isMobileLayout() {
+    return document.documentElement.classList.contains('is-mobile');
   }
 
   function initMobileSwipe() {
+    const shell = document.getElementById('app-shell');
     let startX = 0;
     let startY = 0;
-    terminalGrid.addEventListener('touchstart', (e) => {
-      if (!isMobileLayout() || !e.changedTouches.length) return;
-      startX = e.changedTouches[0].clientX;
-      startY = e.changedTouches[0].clientY;
+    shell.addEventListener('touchstart', (e) => {
+      if (!isMobileLayout() || !e.touches.length) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
     }, { passive: true });
-    terminalGrid.addEventListener('touchend', (e) => {
+    shell.addEventListener('touchend', (e) => {
       if (!isMobileLayout() || !e.changedTouches.length) return;
       const dx = e.changedTouches[0].clientX - startX;
       const dy = e.changedTouches[0].clientY - startY;
-      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      if (Math.abs(dx) < 50 || Math.abs(dx) < Math.abs(dy)) return;
       if (dx < 0 && mobilePane === 'chat') setMobilePane('system');
       else if (dx > 0 && mobilePane === 'system') setMobilePane('chat');
     }, { passive: true });
@@ -277,15 +294,9 @@
     bannerWrapEl.style.height = (bannerEl.offsetHeight * scale) + 'px';
   }
 
-  function isMobileLayout() {
-    return mobileQuery.matches;
-  }
-
   function setMobilePane(pane) {
     mobilePane = pane;
-    toggleChatBtn.classList.toggle('active', pane === 'chat');
-    toggleSystemBtn.classList.toggle('active', pane === 'system');
-    applyPaneVisibility();
+    syncMobilePaneUI();
     requestAnimationFrame(() => {
       fitTerminals();
       fitBanner();
@@ -294,24 +305,10 @@
     });
   }
 
-  function applyPaneVisibility() {
-    const mobile = isMobileLayout();
-    if (!mobile) {
-      chatPane.classList.remove('pane-hidden', 'pane-visible');
-      systemPane.classList.remove('pane-hidden', 'pane-visible');
-      return;
-    }
-    if (mobilePane === 'chat') {
-      chatPane.classList.add('pane-visible');
-      chatPane.classList.remove('pane-hidden');
-      systemPane.classList.add('pane-hidden');
-      systemPane.classList.remove('pane-visible');
-    } else {
-      systemPane.classList.add('pane-visible');
-      systemPane.classList.remove('pane-hidden');
-      chatPane.classList.add('pane-hidden');
-      chatPane.classList.remove('pane-visible');
-    }
+  function syncMobilePaneUI() {
+    document.documentElement.classList.toggle('show-system', isMobileLayout() && mobilePane === 'system');
+    toggleChatBtn.classList.toggle('active', mobilePane === 'chat');
+    toggleSystemBtn.classList.toggle('active', mobilePane === 'system');
   }
 
   function setStatus(text) {
@@ -331,7 +328,8 @@
     ws.onopen = () => {
       reconnectAttempts = 0;
       chatTerm.clear();
-      applyPaneVisibility();
+      updateMobileClass();
+      syncMobilePaneUI();
       fitTerminals();
       fitBanner();
       chatTerm.scrollToBottom();
@@ -504,8 +502,14 @@
   }
 
   function termCols(term) {
+    let cols = term.cols || 0;
+    if (cols < 8 && isMobileLayout()) {
+      const host = term.element && term.element.parentElement;
+      const w = host ? host.clientWidth : window.innerWidth;
+      cols = Math.floor(w / 8);
+    }
     const pad = isMobileLayout() ? 2 : 1;
-    return Math.max((term.cols || 80) - pad, 8);
+    return Math.max(cols - pad, 8);
   }
 
   function effectiveCols(cols) {
