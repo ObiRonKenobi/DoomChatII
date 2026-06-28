@@ -1,5 +1,6 @@
-1.5.3
-Rebuild mobile UI: one pane at a time, fixed input bar, working touch toggles and swipe
-Word wrap at word boundaries; banner pinned above chat scroll area
+1.5.4
+Chat layout: nick on its own line, timestamp + message below (more room for text on mobile)
+Chat is live-shared in joined rooms; theme/font remain per-device
+Mobile pane toggle, swipe, fixed input bar, word-boundary wrapping
 /users command, persistent 24h chat history, tripcode coloring
 Reload the app (hard refresh) after updates to load the latest client

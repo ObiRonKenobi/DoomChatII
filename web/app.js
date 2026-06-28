@@ -116,6 +116,7 @@
   let reconnectTimer = null;
   let currentRoom = '#lobby';
   let fullNick = '';
+  const joinedRooms = new Set(['#lobby']);
   const roomKeys = new Map();
 
   const statusEl = document.getElementById('status');
@@ -335,6 +336,7 @@
       chatTerm.scrollToBottom();
       setStatus('connected');
       writelnSystem('Connected.');
+      writelnSystem('Chat is shared live in your joined rooms (default #lobby). Theme/font are saved per device.');
       send({
         type: 'hello',
         session_id: settings.session_id,
@@ -405,6 +407,13 @@
         break;
       case 'session_restored':
         if (msg.nick) fullNick = msg.nick;
+        if (msg.rooms && msg.rooms.length) {
+          joinedRooms.clear();
+          msg.rooms.forEach((r) => joinedRooms.add(r));
+          if (!joinedRooms.has(currentRoom)) {
+            currentRoom = msg.rooms[0];
+          }
+        }
         writelnSystem('Session restored for ' + (msg.nick || 'guest'));
         break;
       case 'session_new':
@@ -483,8 +492,25 @@
       }
     }
     const ts = formatTimestamp(msg.timestamp);
-    const head = (ts ? '[' + ts + '] ' : '') + formatNickColored(msg.nick, true) + ' ';
-    writeChatMessage(head, text);
+    writeChatEntry(msg.nick, ts, text, msg.room);
+  }
+
+  function writeChatEntry(nick, timestamp, text, room) {
+    let nickLine = formatNickColored(nick, true);
+    if (room && room !== currentRoom) {
+      nickLine = nickLine + ' \x1b[2m(' + room + ')\x1b[0m';
+    }
+    chatTerm.writeln(nickLine);
+
+    const tsPrefix = timestamp ? '[' + timestamp + '] ' : '';
+    const cols = termCols(chatTerm);
+    const prefixLen = stripAnsi(tsPrefix).length;
+    const parts = wrapPlainWordsWithPrefix(text, cols, prefixLen);
+    const indent = ' '.repeat(prefixLen);
+    parts.forEach((part, i) => {
+      chatTerm.writeln(i === 0 ? tsPrefix + part : indent + part);
+    });
+    chatTerm.scrollToBottom();
   }
 
   function stripAnsi(text) {
@@ -599,16 +625,6 @@
 
   function writeWrapped(term, text, cols) {
     wrapTerminalText(text, cols).forEach(line => term.writeln(line));
-  }
-
-  function writeChatMessage(head, body) {
-    const cols = termCols(chatTerm);
-    const indent = ' '.repeat(stripAnsi(head).length);
-    const parts = wrapPlainWordsWithPrefix(body, cols, stripAnsi(head).length);
-    parts.forEach((part, i) => {
-      chatTerm.writeln(i === 0 ? head + part : indent + part);
-    });
-    chatTerm.scrollToBottom();
   }
 
   function ansiFg(hex) {
@@ -777,6 +793,7 @@
           writelnSystem('Encryption key derived for ' + room);
         }
         currentRoom = room;
+        joinedRooms.add(room);
         send({ type: 'join', room });
         break;
       }
@@ -784,6 +801,7 @@
       case 'part': {
         const room = (parts[1] || currentRoom).toLowerCase();
         send({ type: 'part', room });
+        joinedRooms.delete(room);
         if (room === currentRoom) currentRoom = '#lobby';
         break;
       }
