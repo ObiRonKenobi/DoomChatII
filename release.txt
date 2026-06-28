@@ -1,6 +1,5 @@
-1.5.4
-Chat layout: nick on its own line, timestamp + message below (more room for text on mobile)
-Chat is live-shared in joined rooms; theme/font remain per-device
-Mobile pane toggle, swipe, fixed input bar, word-boundary wrapping
-/users command, persistent 24h chat history, tripcode coloring
+1.5.5
+Fluid touch scroll; chat text no longer hidden behind fixed input bar on mobile
+Single shared #lobby shown in header — phone and desktop see the same live chat
+/users command lists room members (/sers alias); nick-on-own-line chat layout
 Reload the app (hard refresh) after updates to load the latest client

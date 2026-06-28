@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=1.5.4">
+  <link rel="stylesheet" href="style.css?v=1.5.5">
   <script>
     (function () {
       function detectMobile() {
@@ -29,10 +29,13 @@
 </head>
 <body>
   <div id="app-shell">
-    <header class="header">
-      <h1>DoomChat II</h1>
+  <header class="header">
+    <h1>DoomChat II</h1>
+    <div class="header-meta">
+      <span id="room-label" class="room-label">#lobby</span>
       <span id="status" class="status">connecting...</span>
-    </header>
+    </div>
+  </header>
     <nav class="mobile-pane-toggle" aria-label="Switch output pane">
       <button type="button" id="toggle-chat" class="pane-toggle active" data-pane="chat" onclick="window.__doomSetPane('chat')">CHAT</button>
       <button type="button" id="toggle-system" class="pane-toggle" data-pane="system" onclick="window.__doomSetPane('system')">SYSTEM</button>
@@ -57,6 +60,6 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.min.js"></script>
-  <script src="app.js?v=1.5.4"></script>
+  <script src="app.js?v=1.5.5"></script>
 </body>
 </html>

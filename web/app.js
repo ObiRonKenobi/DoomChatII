@@ -120,6 +120,8 @@
   const roomKeys = new Map();
 
   const statusEl = document.getElementById('status');
+  const roomLabelEl = document.getElementById('room-label');
+  const inputBarEl = document.querySelector('.input-bar');
   const inputEl = document.getElementById('cmd-input');
   const bannerEl = document.getElementById('chat-banner');
   const bannerWrapEl = document.querySelector('.chat-banner-wrap');
@@ -165,11 +167,20 @@
   syncMobilePaneUI();
   fitTerminals();
   fitBanner();
+  measureInputBar();
   initMobileSwipe();
+
+  if (inputBarEl && typeof ResizeObserver !== 'undefined') {
+    new ResizeObserver(() => {
+      measureInputBar();
+      fitTerminals();
+    }).observe(inputBarEl);
+  }
 
   window.addEventListener('resize', () => {
     updateMobileClass();
     syncMobilePaneUI();
+    measureInputBar();
     fitTerminals();
     fitBanner();
   });
@@ -177,6 +188,7 @@
     setTimeout(() => {
       updateMobileClass();
       syncMobilePaneUI();
+      measureInputBar();
       fitTerminals();
       fitBanner();
     }, 150);
@@ -240,6 +252,25 @@
     document.documentElement.style.setProperty('--font', FONTS[name]);
     saveSettings();
   }
+
+  function measureInputBar() {
+    if (!inputBarEl) return;
+    const h = Math.ceil(inputBarEl.getBoundingClientRect().height);
+    if (h > 0) {
+      document.documentElement.style.setProperty('--input-bar-height', h + 'px');
+    }
+  }
+
+  function updateRoomLabel() {
+    if (roomLabelEl) roomLabelEl.textContent = currentRoom;
+  }
+
+  function setActiveRoom(room) {
+    currentRoom = room;
+    updateRoomLabel();
+  }
+
+  updateRoomLabel();
 
   function fitTerminals() {
     try {
@@ -329,14 +360,19 @@
     ws.onopen = () => {
       reconnectAttempts = 0;
       chatTerm.clear();
+      currentRoom = '#lobby';
+      joinedRooms.clear();
+      joinedRooms.add('#lobby');
+      updateRoomLabel();
       updateMobileClass();
       syncMobilePaneUI();
+      measureInputBar();
       fitTerminals();
       fitBanner();
       chatTerm.scrollToBottom();
       setStatus('connected');
       writelnSystem('Connected.');
-      writelnSystem('Chat is shared live in your joined rooms (default #lobby). Theme/font are saved per device.');
+      writelnSystem('One shared #lobby for everyone — phone and desktop see the same live chat. Theme/font are per-device.');
       send({
         type: 'hello',
         session_id: settings.session_id,
@@ -345,6 +381,7 @@
         font: settings.font
       });
       setTimeout(() => {
+        measureInputBar();
         fitTerminals();
         fitBanner();
       }, 300);
@@ -410,11 +447,10 @@
         if (msg.rooms && msg.rooms.length) {
           joinedRooms.clear();
           msg.rooms.forEach((r) => joinedRooms.add(r));
-          if (!joinedRooms.has(currentRoom)) {
-            currentRoom = msg.rooms[0];
-          }
         }
-        writelnSystem('Session restored for ' + (msg.nick || 'guest'));
+        joinedRooms.add('#lobby');
+        setActiveRoom('#lobby');
+        writelnSystem('Session restored for ' + (msg.nick || 'guest') + ' — back in #lobby');
         break;
       case 'session_new':
         writelnSystem('New session. Use /nick YourName#secret');
@@ -792,7 +828,7 @@
           roomKeys.set(room, key);
           writelnSystem('Encryption key derived for ' + room);
         }
-        currentRoom = room;
+        setActiveRoom(room);
         joinedRooms.add(room);
         send({ type: 'join', room });
         break;
@@ -802,7 +838,7 @@
         const room = (parts[1] || currentRoom).toLowerCase();
         send({ type: 'part', room });
         joinedRooms.delete(room);
-        if (room === currentRoom) currentRoom = '#lobby';
+        if (room === currentRoom) setActiveRoom('#lobby');
         break;
       }
 
@@ -816,7 +852,7 @@
         const room = ('#' + name).toLowerCase();
         const key = await deriveKey(pass, room);
         roomKeys.set(room, key);
-        currentRoom = room;
+        setActiveRoom(room);
         send({ type: 'create_room', name, encrypted: true });
         break;
       }
@@ -864,6 +900,7 @@
         send({ type: 'list' });
         break;
 
+      case 'sers':
       case 'users': {
         let room = parts[1] || currentRoom;
         if (room && !room.startsWith('#')) room = '#' + room;
@@ -919,7 +956,8 @@
 
       case 'room':
         if (parts[1]) {
-          currentRoom = parts[1].startsWith('#') ? parts[1].toLowerCase() : ('#' + parts[1]).toLowerCase();
+          const room = parts[1].startsWith('#') ? parts[1].toLowerCase() : ('#' + parts[1]).toLowerCase();
+          setActiveRoom(room);
           writelnSystem('Active room: ' + currentRoom);
         }
         break;
