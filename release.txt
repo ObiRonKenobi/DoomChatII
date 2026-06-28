@@ -1,8 +1,6 @@
-1.5.1
+1.5.2
+Fix mobile pane toggle, swipe left/right between CHAT and SYSTEM, pinned input bar
 Word wrap at word boundaries on desktop and mobile (whole words move to next line)
-Mobile layout fixes: banner pinned to top of chat, input locked to bottom
-Mobile CHAT/SYSTEM toggle for phones and small screens
-/users command lists everyone in a room
-Chat history survives server restarts (24h countdown continues from original post time)
-Tripcode suffix shown in a distinct color; pasted tripcodes blocked
-Reload the app (hard refresh / Ctrl+Shift+R) after updates to load the latest client
+Mobile layout: banner pinned to top of chat, only one pane visible at a time
+/users command, persistent 24h chat history, tripcode coloring
+Reload the app (hard refresh) after updates to load the latest client

@@ -124,10 +124,13 @@
   const bannerWrapEl = document.querySelector('.chat-banner-wrap');
   const toggleChatBtn = document.getElementById('toggle-chat');
   const toggleSystemBtn = document.getElementById('toggle-system');
+  const chatPane = document.getElementById('chat-pane');
+  const systemPane = document.getElementById('system-pane');
+  const terminalGrid = document.getElementById('terminal-grid');
   bannerEl.textContent = BANNER.join('\n');
 
   let mobilePane = 'chat';
-  const mobileQuery = window.matchMedia('(max-width: 768px)');
+  const mobileQuery = window.matchMedia('(max-width: 768px), (pointer: coarse) and (max-width: 1024px)');
 
   const chatTerm = new Terminal({
     cursorBlink: false,
@@ -154,20 +157,21 @@
   applyFont(settings.font);
   fitTerminals();
   fitBanner();
-  updateMobileLayout();
+  applyPaneVisibility();
+  initMobileSwipe();
 
   window.addEventListener('resize', () => {
     fitTerminals();
     fitBanner();
-    updateMobileLayout();
+    applyPaneVisibility();
   });
   mobileQuery.addEventListener('change', () => {
-    updateMobileLayout();
+    applyPaneVisibility();
     fitBanner();
     fitTerminals();
   });
-  toggleChatBtn.addEventListener('click', () => setMobilePane('chat'));
-  toggleSystemBtn.addEventListener('click', () => setMobilePane('system'));
+  bindPaneToggle(toggleChatBtn, 'chat');
+  bindPaneToggle(toggleSystemBtn, 'system');
   inputEl.addEventListener('keydown', onInputKey);
 
   connect();
@@ -229,13 +233,33 @@
   }
 
   function fitTerminals() {
-    if (isMobileLayout()) {
-      if (mobilePane === 'chat') chatFit.fit();
-      if (mobilePane === 'system') systemFit.fit();
-    } else {
-      chatFit.fit();
-      systemFit.fit();
-    }
+    chatFit.fit();
+    systemFit.fit();
+  }
+
+  function bindPaneToggle(btn, pane) {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      setMobilePane(pane);
+    });
+  }
+
+  function initMobileSwipe() {
+    let startX = 0;
+    let startY = 0;
+    terminalGrid.addEventListener('touchstart', (e) => {
+      if (!isMobileLayout() || !e.changedTouches.length) return;
+      startX = e.changedTouches[0].clientX;
+      startY = e.changedTouches[0].clientY;
+    }, { passive: true });
+    terminalGrid.addEventListener('touchend', (e) => {
+      if (!isMobileLayout() || !e.changedTouches.length) return;
+      const dx = e.changedTouches[0].clientX - startX;
+      const dy = e.changedTouches[0].clientY - startY;
+      if (Math.abs(dx) < 60 || Math.abs(dx) < Math.abs(dy) * 1.2) return;
+      if (dx < 0 && mobilePane === 'chat') setMobilePane('system');
+      else if (dx > 0 && mobilePane === 'system') setMobilePane('chat');
+    }, { passive: true });
   }
 
   function fitBanner() {
@@ -261,18 +285,33 @@
     mobilePane = pane;
     toggleChatBtn.classList.toggle('active', pane === 'chat');
     toggleSystemBtn.classList.toggle('active', pane === 'system');
-    updateMobileLayout();
+    applyPaneVisibility();
     requestAnimationFrame(() => {
       fitTerminals();
       fitBanner();
+      if (pane === 'chat') chatTerm.scrollToBottom();
+      else systemTerm.scrollToBottom();
     });
   }
 
-  function updateMobileLayout() {
+  function applyPaneVisibility() {
     const mobile = isMobileLayout();
-    document.body.classList.toggle('mobile-layout', mobile);
-    document.body.classList.toggle('mobile-pane-chat', mobile && mobilePane === 'chat');
-    document.body.classList.toggle('mobile-pane-system', mobile && mobilePane === 'system');
+    if (!mobile) {
+      chatPane.classList.remove('pane-hidden', 'pane-visible');
+      systemPane.classList.remove('pane-hidden', 'pane-visible');
+      return;
+    }
+    if (mobilePane === 'chat') {
+      chatPane.classList.add('pane-visible');
+      chatPane.classList.remove('pane-hidden');
+      systemPane.classList.add('pane-hidden');
+      systemPane.classList.remove('pane-visible');
+    } else {
+      systemPane.classList.add('pane-visible');
+      systemPane.classList.remove('pane-hidden');
+      chatPane.classList.add('pane-hidden');
+      chatPane.classList.remove('pane-visible');
+    }
   }
 
   function setStatus(text) {
@@ -292,6 +331,9 @@
     ws.onopen = () => {
       reconnectAttempts = 0;
       chatTerm.clear();
+      applyPaneVisibility();
+      fitTerminals();
+      fitBanner();
       chatTerm.scrollToBottom();
       setStatus('connected');
       writelnSystem('Connected.');
@@ -302,6 +344,10 @@
         theme: settings.theme,
         font: settings.font
       });
+      setTimeout(() => {
+        fitTerminals();
+        fitBanner();
+      }, 300);
     };
 
     ws.onmessage = (ev) => {
@@ -419,6 +465,10 @@
       });
     }
     chatTerm.scrollToBottom();
+    requestAnimationFrame(() => {
+      fitTerminals();
+      fitBanner();
+    });
   }
 
   async function renderChatLine(msg) {
@@ -454,7 +504,8 @@
   }
 
   function termCols(term) {
-    return Math.max(term.cols || 80, 12);
+    const pad = isMobileLayout() ? 2 : 1;
+    return Math.max((term.cols || 80) - pad, 8);
   }
 
   function effectiveCols(cols) {
