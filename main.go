@@ -33,6 +33,7 @@ func main() {
 
 	hub := NewHub(db, trivia)
 	go hub.Run()
+	hub.LoadRelease(filepath.Join(".", "release.txt"))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {

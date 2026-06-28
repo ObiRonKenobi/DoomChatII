@@ -58,6 +58,19 @@ CREATE TABLE IF NOT EXISTS posts (
   body TEXT NOT NULL,
   created_at DATETIME NOT NULL,
   FOREIGN KEY(thread_id) REFERENCES threads(id)
+);
+CREATE TABLE IF NOT EXISTS chat_messages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  room TEXT NOT NULL,
+  nick TEXT NOT NULL,
+  body TEXT NOT NULL,
+  encrypted INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_chat_messages_room_created ON chat_messages(room, created_at);
+CREATE TABLE IF NOT EXISTS meta (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL
 );`
 	_, err := db.conn.Exec(schema)
 	return err

@@ -12,6 +12,7 @@ RUN mkdir -p /data && chmod 777 /data
 COPY --from=build /app/doomchat .
 COPY web/ web/
 COPY trivia.json .
+COPY release.txt .
 ENV PORT=8080
 ENV DATA_DIR=/data
 EXPOSE 8080

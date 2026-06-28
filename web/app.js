@@ -2,6 +2,7 @@
   'use strict';
 
   const SETTINGS_KEY = 'doomchat_settings';
+  const RELEASE_SEEN_KEY = 'doomchat_release_seen';
   const RECONNECT_DELAY_MS = 2000;
   const MAX_RECONNECTS = 10;
 
@@ -120,7 +121,12 @@
   const statusEl = document.getElementById('status');
   const inputEl = document.getElementById('cmd-input');
   const bannerEl = document.getElementById('chat-banner');
+  const toggleChatBtn = document.getElementById('toggle-chat');
+  const toggleSystemBtn = document.getElementById('toggle-system');
   bannerEl.textContent = BANNER.join('\n');
+
+  let mobilePane = 'chat';
+  const mobileQuery = window.matchMedia('(max-width: 768px)');
 
   const chatTerm = new Terminal({
     cursorBlink: false,
@@ -146,8 +152,15 @@
   applyTheme(settings.theme);
   applyFont(settings.font);
   fitTerminals();
+  updateMobileLayout();
 
-  window.addEventListener('resize', fitTerminals);
+  window.addEventListener('resize', () => {
+    fitTerminals();
+    updateMobileLayout();
+  });
+  mobileQuery.addEventListener('change', updateMobileLayout);
+  toggleChatBtn.addEventListener('click', () => setMobilePane('chat'));
+  toggleSystemBtn.addEventListener('click', () => setMobilePane('system'));
   inputEl.addEventListener('keydown', onInputKey);
 
   connect();
@@ -211,6 +224,25 @@
   function fitTerminals() {
     chatFit.fit();
     systemFit.fit();
+  }
+
+  function isMobileLayout() {
+    return mobileQuery.matches;
+  }
+
+  function setMobilePane(pane) {
+    mobilePane = pane;
+    toggleChatBtn.classList.toggle('active', pane === 'chat');
+    toggleSystemBtn.classList.toggle('active', pane === 'system');
+    updateMobileLayout();
+    requestAnimationFrame(fitTerminals);
+  }
+
+  function updateMobileLayout() {
+    const mobile = isMobileLayout();
+    document.body.classList.toggle('mobile-layout', mobile);
+    document.body.classList.toggle('mobile-pane-chat', mobile && mobilePane === 'chat');
+    document.body.classList.toggle('mobile-pane-system', mobile && mobilePane === 'system');
   }
 
   function setStatus(text) {
@@ -294,6 +326,9 @@
       case 'error':
         writelnSystem(msg.text, true);
         break;
+      case 'release':
+        handleRelease(msg);
+        break;
       case 'session_restored':
         if (msg.nick) fullNick = msg.nick;
         writelnSystem('Session restored for ' + (msg.nick || 'guest'));
@@ -323,6 +358,23 @@
       default:
         break;
     }
+  }
+
+  function handleRelease(msg) {
+    if (msg.version && localStorage.getItem(RELEASE_SEEN_KEY) === msg.version) {
+      return;
+    }
+    writelnSystem('[server] DoomChat II updated (v' + (msg.version || '?') + '):');
+    if (msg.text) {
+      msg.text.split('\n').forEach(line => {
+        if (line.trim()) writelnSystem('  • ' + line.trim());
+      });
+    }
+    writelnSystem('Reload the page (hard refresh) to get the latest client updates.');
+    if (msg.version) {
+      localStorage.setItem(RELEASE_SEEN_KEY, msg.version);
+    }
+    if (isMobileLayout()) setMobilePane('system');
   }
 
   async function renderHistory(msg) {
@@ -433,6 +485,7 @@
       } catch (err) {
         writelnSystem('Command failed: ' + (err && err.message ? err.message : err), true);
       }
+      if (isMobileLayout()) setMobilePane('system');
       return;
     }
 
@@ -474,6 +527,7 @@
           '/trivia             — ask one random question (30s)',
           '/trivia start|stop  — continuous trivia game',
           '/list               — public rooms and user counts',
+          '/users [#room]      — users currently in a room',
           '/boards             — list message boards',
           '/board create Name  — create board',
           '/threads Board      — list threads',
@@ -589,6 +643,13 @@
       case 'list':
         send({ type: 'list' });
         break;
+
+      case 'users': {
+        let room = parts[1] || currentRoom;
+        if (room && !room.startsWith('#')) room = '#' + room;
+        send({ type: 'users', room: (room || currentRoom).toLowerCase() });
+        break;
+      }
 
       case 'boards':
         send({ type: 'board_list' });

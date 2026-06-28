@@ -60,6 +60,7 @@ type ServerMessage struct {
 	NextIn   int            `json:"next_in,omitempty"`
 	Scores   map[string]int `json:"scores,omitempty"`
 	RoomList []RoomCount    `json:"room_list,omitempty"`
+	Version  string         `json:"version,omitempty"`
 	Boards   []BoardInfo    `json:"boards,omitempty"`
 	Threads  []ThreadInfo   `json:"threads,omitempty"`
 	Posts    []PostInfo     `json:"posts,omitempty"`

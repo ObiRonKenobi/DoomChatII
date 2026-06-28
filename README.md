@@ -40,6 +40,7 @@ Environment variables (see [`.env.example`](.env.example)):
 | `/trivia` | Ask one random question (30s, answer revealed if unsolved) |
 | `/trivia start` / `stop` | Continuous random trivia game in chat pane |
 | `/list` | List public rooms and user counts |
+| `/users` | List users in the current room (or `/users #room`) |
 | `/boards` | List message boards |
 | `/board create Name` | Create a board |
 | `/threads Board` | List threads |
@@ -107,6 +108,10 @@ curl http://YOUR_PUBLIC_IP:8080/health   # → ok
 ```
 
 ### Updates
+
+Before each publish, bump the version on **line 1** of [`release.txt`](release.txt) and edit the bullet list below it. On startup the server announces the new version to connected users and reminds them to reload.
+
+Chat messages are stored in SQLite on the `/data` volume — they survive restarts and keep their original 24-hour expiry.
 
 ```bash
 cd /opt/doomchat-ii && git pull && docker compose build && docker compose up -d

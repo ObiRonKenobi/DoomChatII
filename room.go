@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 )
 
@@ -82,6 +83,35 @@ func (r *Room) MemberCount() int {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.members)
+}
+
+func (r *Room) MemberNicks() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	counts := make(map[string]int)
+	for m := range r.members {
+		m.mu.Lock()
+		nick := m.nick
+		m.mu.Unlock()
+		if nick == "" {
+			nick = "(guest)"
+		}
+		counts[nick]++
+	}
+	nicks := make([]string, 0, len(counts))
+	for nick := range counts {
+		nicks = append(nicks, nick)
+	}
+	sort.Strings(nicks)
+	out := make([]string, 0, len(nicks))
+	for _, nick := range nicks {
+		if counts[nick] > 1 {
+			out = append(out, fmt.Sprintf("%s (%d)", nick, counts[nick]))
+		} else {
+			out = append(out, nick)
+		}
+	}
+	return out
 }
 
 func (r *Room) Broadcast(msg ServerMessage, exclude *Client) {

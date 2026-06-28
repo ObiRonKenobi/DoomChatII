@@ -86,6 +86,8 @@ func (c *Client) handleMessage(h *Hub, msg ClientMessage) {
 		c.handleTriviaOnce(h, msg)
 	case "list":
 		c.handleList(h)
+	case "users":
+		c.handleUsers(h, msg)
 	case "board_list", "board_create", "thread_list", "thread_create", "post_list", "post_create":
 		h.handleBoardCommand(c, msg)
 	case "logout":
@@ -104,6 +106,7 @@ func (c *Client) handleHello(h *Hub, msg ClientMessage) {
 		c.Send(ServerMessage{Type: "session_new", Target: TargetSystem})
 		c.sendSystem("Welcome to DoomChat II. Set your nick: /nick YourName#secret")
 		_ = c.joinRoom(h, lobbyRoom)
+		c.sendReleaseNotice(h)
 		return
 	}
 
@@ -128,6 +131,7 @@ func (c *Client) handleHello(h *Hub, msg ClientMessage) {
 			Rooms:  c.joinedRooms(),
 		})
 		c.sendSystem("Session restored. Welcome back, " + displayNick(c.nick))
+		c.sendReleaseNotice(h)
 		return
 	}
 
@@ -141,6 +145,7 @@ func (c *Client) handleHello(h *Hub, msg ClientMessage) {
 	}
 	c.sendSystem("Welcome to DoomChat II. Set your nick: /nick YourName#secret")
 	_ = c.joinRoom(h, lobbyRoom)
+	c.sendReleaseNotice(h)
 }
 
 func (c *Client) handleNick(h *Hub, msg ClientMessage) {
@@ -339,6 +344,31 @@ func (c *Client) handleList(h *Hub) {
 		RoomList: list,
 		Text:     strings.Join(lines, ", "),
 	})
+}
+
+func (c *Client) handleUsers(h *Hub, msg ClientMessage) {
+	roomName := normalizeRoom(msg.Room)
+	if roomName == "" {
+		roomName = lobbyRoom
+	}
+	c.mu.Lock()
+	_, inRoom := c.rooms[roomName]
+	c.mu.Unlock()
+	if !inRoom {
+		c.sendError("not in room " + roomName)
+		return
+	}
+	room, ok := h.rooms.Get(roomName)
+	if !ok {
+		c.sendError("room not found")
+		return
+	}
+	nicks := room.MemberNicks()
+	if len(nicks) == 0 {
+		c.sendSystem(fmt.Sprintf("Users in %s: (none)", roomName))
+		return
+	}
+	c.sendSystem(fmt.Sprintf("Users in %s (%d): %s", roomName, len(nicks), strings.Join(nicks, ", ")))
 }
 
 func (c *Client) handleLogout(h *Hub) {

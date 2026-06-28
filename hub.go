@@ -35,7 +35,9 @@ type Hub struct {
 	sessions   *SessionManager
 	db         *DB
 	trivia     *TriviaManager
-	history    *MessageLog
+	history       *MessageLog
+	releaseVersion string
+	releaseNotes   string
 	register   chan *Client
 	unregister chan *Client
 	mu         sync.RWMutex
@@ -50,7 +52,7 @@ func NewHub(db *DB, trivia *TriviaManager) *Hub {
 		sessions:   NewSessionManager(),
 		db:         db,
 		trivia:     trivia,
-		history:    NewMessageLog(),
+		history:    NewMessageLog(db),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		connRate:   make(map[string][]time.Time),
