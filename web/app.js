@@ -121,6 +121,7 @@
   const statusEl = document.getElementById('status');
   const inputEl = document.getElementById('cmd-input');
   const bannerEl = document.getElementById('chat-banner');
+  const bannerWrapEl = document.querySelector('.chat-banner-wrap');
   const toggleChatBtn = document.getElementById('toggle-chat');
   const toggleSystemBtn = document.getElementById('toggle-system');
   bannerEl.textContent = BANNER.join('\n');
@@ -152,13 +153,19 @@
   applyTheme(settings.theme);
   applyFont(settings.font);
   fitTerminals();
+  fitBanner();
   updateMobileLayout();
 
   window.addEventListener('resize', () => {
     fitTerminals();
+    fitBanner();
     updateMobileLayout();
   });
-  mobileQuery.addEventListener('change', updateMobileLayout);
+  mobileQuery.addEventListener('change', () => {
+    updateMobileLayout();
+    fitBanner();
+    fitTerminals();
+  });
   toggleChatBtn.addEventListener('click', () => setMobilePane('chat'));
   toggleSystemBtn.addEventListener('click', () => setMobilePane('system'));
   inputEl.addEventListener('keydown', onInputKey);
@@ -222,8 +229,28 @@
   }
 
   function fitTerminals() {
-    chatFit.fit();
-    systemFit.fit();
+    if (isMobileLayout()) {
+      if (mobilePane === 'chat') chatFit.fit();
+      if (mobilePane === 'system') systemFit.fit();
+    } else {
+      chatFit.fit();
+      systemFit.fit();
+    }
+  }
+
+  function fitBanner() {
+    if (!bannerWrapEl || !bannerEl) return;
+    bannerEl.style.transform = 'none';
+    bannerWrapEl.style.height = '';
+    if (!isMobileLayout()) {
+      return;
+    }
+    const available = bannerWrapEl.clientWidth;
+    const natural = bannerEl.scrollWidth;
+    if (natural <= 0 || available <= 0) return;
+    const scale = Math.min(1, available / natural);
+    bannerEl.style.transform = 'scale(' + scale + ')';
+    bannerWrapEl.style.height = (bannerEl.offsetHeight * scale) + 'px';
   }
 
   function isMobileLayout() {
@@ -235,7 +262,10 @@
     toggleChatBtn.classList.toggle('active', pane === 'chat');
     toggleSystemBtn.classList.toggle('active', pane === 'system');
     updateMobileLayout();
-    requestAnimationFrame(fitTerminals);
+    requestAnimationFrame(() => {
+      fitTerminals();
+      fitBanner();
+    });
   }
 
   function updateMobileLayout() {
@@ -405,8 +435,125 @@
       }
     }
     const ts = formatTimestamp(msg.timestamp);
-    const prefix = ts ? '[' + ts + '] ' : '';
-    writelnChat(prefix + formatNickColored(msg.nick, true) + ' ' + text);
+    const head = (ts ? '[' + ts + '] ' : '') + formatNickColored(msg.nick, true) + ' ';
+    writeChatMessage(head, text);
+  }
+
+  function stripAnsi(text) {
+    return text.replace(/\x1b\[[0-9;]*m/g, '');
+  }
+
+  function extractAnsiPrefix(text) {
+    let i = 0;
+    while (i < text.length) {
+      const m = text.slice(i).match(/^\x1b\[[0-9;]*m/);
+      if (!m) break;
+      i += m[0].length;
+    }
+    return text.slice(0, i);
+  }
+
+  function termCols(term) {
+    return Math.max(term.cols || 80, 12);
+  }
+
+  function effectiveCols(cols) {
+    return Math.max(cols || 80, 12);
+  }
+
+  /** Wrap plain text at word boundaries; never split a word mid-character. */
+  function wrapPlainWords(text, width) {
+    if (!text) return [''];
+    width = Math.max(width, 8);
+    const words = text.split(/\s+/).filter(Boolean);
+    if (!words.length) return [''];
+
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      if (!line) {
+        line = word;
+        if (line.length > width) {
+          lines.push(line);
+          line = '';
+        }
+        continue;
+      }
+      const candidate = line + ' ' + word;
+      if (candidate.length <= width) {
+        line = candidate;
+      } else {
+        lines.push(line);
+        line = word;
+        if (line.length > width) {
+          lines.push(line);
+          line = '';
+        }
+      }
+    }
+    if (line) lines.push(line);
+    return lines.length ? lines : [''];
+  }
+
+  function wrapPlainWordsWithPrefix(text, cols, prefixLen) {
+    const width = Math.max(cols - prefixLen, 8);
+    const words = text.split(/\s+/).filter(Boolean);
+    if (!words.length) return [''];
+
+    const lines = [];
+    let line = '';
+    for (const word of words) {
+      if (!line) {
+        line = word;
+        if (line.length > width) {
+          lines.push(line);
+          line = '';
+        }
+        continue;
+      }
+      const candidate = line + ' ' + word;
+      if (candidate.length <= width) {
+        line = candidate;
+      } else {
+        lines.push(line);
+        line = word;
+        if (line.length > width) {
+          lines.push(line);
+          line = '';
+        }
+      }
+    }
+    if (line) lines.push(line);
+    return lines.length ? lines : [''];
+  }
+
+  function wrapTerminalText(text, cols) {
+    const width = effectiveCols(cols);
+    const ansiPrefix = extractAnsiPrefix(text);
+    const plain = stripAnsi(text);
+    const rows = plain.split('\n');
+    const out = [];
+    for (let r = 0; r < rows.length; r++) {
+      const wrapped = wrapPlainWords(rows[r], width);
+      for (let i = 0; i < wrapped.length; i++) {
+        out.push((r === 0 && i === 0 ? ansiPrefix : ansiPrefix) + wrapped[i]);
+      }
+    }
+    return out.length ? out : [''];
+  }
+
+  function writeWrapped(term, text, cols) {
+    wrapTerminalText(text, cols).forEach(line => term.writeln(line));
+  }
+
+  function writeChatMessage(head, body) {
+    const cols = termCols(chatTerm);
+    const indent = ' '.repeat(stripAnsi(head).length);
+    const parts = wrapPlainWordsWithPrefix(body, cols, stripAnsi(head).length);
+    parts.forEach((part, i) => {
+      chatTerm.writeln(i === 0 ? head + part : indent + part);
+    });
+    chatTerm.scrollToBottom();
   }
 
   function ansiFg(hex) {
@@ -448,13 +595,13 @@
   }
 
   function writelnChat(text) {
-    chatTerm.writeln(text);
+    writeWrapped(chatTerm, text, termCols(chatTerm));
     chatTerm.scrollToBottom();
   }
 
   function writelnSystem(text, isError) {
-    if (isError) systemTerm.writeln('\x1b[31m' + text + '\x1b[0m');
-    else systemTerm.writeln(text);
+    const content = isError ? '\x1b[31m' + text + '\x1b[0m' : text;
+    writeWrapped(systemTerm, content, termCols(systemTerm));
     systemTerm.scrollToBottom();
   }
 

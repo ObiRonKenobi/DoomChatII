@@ -1,4 +1,6 @@
-1.5.0
+1.5.1
+Word wrap at word boundaries on desktop and mobile (whole words move to next line)
+Mobile layout fixes: banner pinned to top of chat, input locked to bottom
 Mobile CHAT/SYSTEM toggle for phones and small screens
 /users command lists everyone in a room
 Chat history survives server restarts (24h countdown continues from original post time)

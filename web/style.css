@@ -14,15 +14,18 @@
 html, body {
   margin: 0;
   height: 100%;
+  height: 100dvh;
   background: var(--bg);
   color: var(--fg);
   font-family: var(--font);
+  overflow: hidden;
 }
 
 body {
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  min-height: 100vh;
+  grid-template-rows: auto auto 1fr auto;
+  min-height: 100dvh;
+  max-height: 100dvh;
 }
 
 .header {
@@ -31,6 +34,7 @@ body {
   justify-content: space-between;
   padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--system);
+  flex-shrink: 0;
 }
 
 .header h1 {
@@ -73,6 +77,14 @@ body {
   flex-shrink: 0;
 }
 
+.chat-banner-wrap {
+  flex-shrink: 0;
+  width: 100%;
+  overflow: hidden;
+  border-bottom: 1px solid var(--system);
+  background: var(--bg);
+}
+
 .chat-banner {
   margin: 0;
   padding: 0.35rem 0.5rem 0.25rem;
@@ -81,10 +93,11 @@ body {
   line-height: 1.08;
   color: var(--fg);
   background: var(--bg);
-  border-bottom: 1px solid var(--system);
   flex-shrink: 0;
   overflow: hidden;
   white-space: pre;
+  transform-origin: top left;
+  display: inline-block;
 }
 
 .terminal-host {
@@ -100,6 +113,8 @@ body {
 
 .terminal-host .xterm-viewport {
   overflow-y: auto !important;
+  overflow-x: hidden !important;
+  -webkit-overflow-scrolling: touch;
 }
 
 .input-bar {
@@ -107,8 +122,10 @@ body {
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--system);
   background: var(--bg);
+  flex-shrink: 0;
 }
 
 .prompt {
@@ -160,6 +177,10 @@ body {
 }
 
 @media (max-width: 768px) {
+  .header {
+    padding-top: max(0.5rem, env(safe-area-inset-top, 0px));
+  }
+
   .mobile-pane-toggle {
     display: flex;
     flex-shrink: 0;
@@ -169,12 +190,15 @@ body {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
     min-height: 0;
+    overflow: hidden;
   }
 
   .pane {
     border-right: none;
     border-bottom: none;
     min-height: 0;
+    height: 100%;
+    overflow: hidden;
   }
 
   body.mobile-layout.mobile-pane-chat .system-pane {
@@ -190,11 +214,29 @@ body {
     min-height: 0;
   }
 
+  body.mobile-layout .chat-pane {
+    display: flex;
+    flex-direction: column;
+  }
+
+  body.mobile-layout .chat-banner-wrap {
+    flex-shrink: 0;
+  }
+
+  body.mobile-layout .terminal-host {
+    flex: 1;
+    min-height: 0;
+  }
+
   .chat-banner {
-    font-size: clamp(0.35rem, 2.8vw, 0.55rem);
+    font-size: 0.55rem;
   }
 
   .header h1 {
     font-size: 0.85rem;
+  }
+
+  #cmd-input {
+    font-size: 16px;
   }
 }
