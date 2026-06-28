@@ -85,17 +85,33 @@ Also check **Ubuntu firewall** on the VM if enabled: `sudo ufw allow 8080/tcp`
 
 ### 3. Install and run
 
-```bash
-ssh ubuntu@YOUR_PUBLIC_IP
+**From your home machine**, SSH into the VM (use your key if you created one during setup):
 
+```bash
+ssh -i ~/.ssh/doomchat_oci ubuntu@YOUR_PUBLIC_IP
+```
+
+Example: `ssh -i ~/.ssh/doomchat_oci ubuntu@150.136.168.78`
+
+If you get `Permission denied (publickey)`, check the key path and permissions:
+
+```bash
+chmod 600 ~/.ssh/doomchat_oci
+```
+
+**On the VM**, clone and start the app:
+
+```bash
 git clone https://github.com/ObiRonKenobi/DoomChatII.git /opt/doomchat-ii
 cd /opt/doomchat-ii
 chmod +x deploy/*.sh
 ./deploy/setup-vm.sh
 
 echo "BASE_URL=http://YOUR_PUBLIC_IP:8080" > .env
-docker compose up -d
+sudo docker compose up -d --build
 ```
+
+Exit the VM when done: `exit`
 
 ### 4. Use it
 
@@ -107,15 +123,59 @@ WebSocket connects automatically as `ws://YOUR_PUBLIC_IP:8080/ws`.
 curl http://YOUR_PUBLIC_IP:8080/health   # → ok
 ```
 
-### Updates
+Hard-refresh after updates: **Ctrl+Shift+R** (desktop) or clear cache / reload (mobile).
 
-Before each publish, bump the version on **line 1** of [`release.txt`](release.txt) and edit the bullet list below it. On startup the server announces the new version to connected users and reminds them to reload.
+### 5. Deploy updates (publish a new version)
 
-Chat messages are stored in SQLite on the `/data` volume — they survive restarts and keep their original 24-hour expiry.
+Run these steps whenever you push changes to GitHub and want them live on the VM.
+
+**A. On your home machine** (optional — only if you changed code locally and need to push first):
 
 ```bash
-cd /opt/doomchat-ii && git pull && docker compose build && docker compose up -d
+cd ~/Projects/DoomChatII
+# edit release.txt — bump version on line 1, update bullet list
+git add -A
+git commit -m "Describe your changes"
+git push origin main
 ```
+
+**B. SSH into the VM** (from your home machine):
+
+```bash
+ssh -i ~/.ssh/doomchat_oci ubuntu@YOUR_PUBLIC_IP
+```
+
+**C. On the VM**, pull, rebuild, and restart:
+
+```bash
+cd /opt/doomchat-ii
+git pull
+sudo docker compose build doomchat
+sudo docker compose up -d
+```
+
+**D. Verify** (still on the VM):
+
+```bash
+sudo docker compose ps
+curl http://127.0.0.1:8080/health
+```
+
+You should see the container **Up (healthy)** and `curl` should print `ok`.
+
+**E. Exit SSH and reload the app in your browser:**
+
+```bash
+exit
+```
+
+Open **http://YOUR_PUBLIC_IP:8080** and hard-refresh. New connects show the `[server]` release notes in the SYSTEM pane (once per version).
+
+**Notes:**
+
+- Before each publish, bump the version on **line 1** of [`release.txt`](release.txt) and edit the bullet list. The server announces it on connect and reminds users to reload.
+- Chat messages live in SQLite on the Docker `/data` volume — they survive restarts and keep their original 24-hour expiry.
+- If SSH times out, your home IP may have changed; update the Oracle security list ingress rule for port **22**.
 
 ### Optional later: HTTPS + domain
 
