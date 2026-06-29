@@ -1,5 +1,2 @@
-1.5.5
-Fluid touch scroll; chat text no longer hidden behind fixed input bar on mobile
-Single shared #lobby shown in header — phone and desktop see the same live chat
-/users command lists room members (/sers alias); nick-on-own-line chat layout
-Reload the app (hard refresh) after updates to load the latest client
+1.5.6
+Mobile: tap ✓ or keyboard Send to post messages like SMS. Chat scroll fixed so text stays above the input bar.

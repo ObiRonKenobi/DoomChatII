@@ -158,9 +158,6 @@ body {
 }
 
 .input-bar {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
   padding: 0.5rem 1rem;
   padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--system);
@@ -168,9 +165,18 @@ body {
   flex-shrink: 0;
 }
 
+.input-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-width: 0;
+}
+
 .prompt {
   color: var(--highlight);
   font-weight: bold;
+  flex-shrink: 0;
 }
 
 #cmd-input {
@@ -182,6 +188,39 @@ body {
   font-family: var(--font);
   font-size: 0.9rem;
   outline: none;
+}
+
+.cmd-send {
+  display: none;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.35rem;
+  height: 2.35rem;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--highlight);
+  border-radius: 50%;
+  background: var(--highlight);
+  color: var(--bg);
+  font-family: var(--font);
+  font-size: 1.15rem;
+  line-height: 1;
+  font-weight: bold;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.cmd-send:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+html.is-mobile .cmd-send {
+  display: flex;
 }
 
 #cmd-input::placeholder {

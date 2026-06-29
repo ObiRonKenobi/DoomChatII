@@ -122,7 +122,9 @@
   const statusEl = document.getElementById('status');
   const roomLabelEl = document.getElementById('room-label');
   const inputBarEl = document.querySelector('.input-bar');
+  const cmdFormEl = document.getElementById('cmd-form');
   const inputEl = document.getElementById('cmd-input');
+  const sendBtnEl = document.getElementById('cmd-send');
   const bannerEl = document.getElementById('chat-banner');
   const bannerWrapEl = document.querySelector('.chat-banner-wrap');
   const toggleChatBtn = document.getElementById('toggle-chat');
@@ -193,7 +195,14 @@
       fitBanner();
     }, 150);
   });
-  inputEl.addEventListener('keydown', onInputKey);
+  if (cmdFormEl) {
+    cmdFormEl.addEventListener('submit', (e) => {
+      e.preventDefault();
+      submitLine();
+    });
+  }
+  inputEl.addEventListener('input', syncSendButton);
+  syncSendButton();
 
   connect();
 
@@ -726,12 +735,16 @@
     return roomKeys.has(room);
   }
 
-  async function onInputKey(e) {
-    if (e.key !== 'Enter') return;
-    e.preventDefault();
+  function syncSendButton() {
+    if (!sendBtnEl) return;
+    sendBtnEl.disabled = !inputEl.value.trim();
+  }
+
+  async function submitLine() {
     const line = inputEl.value.trim();
-    inputEl.value = '';
     if (!line) return;
+    inputEl.value = '';
+    syncSendButton();
 
     if (line.startsWith('/')) {
       try {
