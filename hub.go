@@ -31,19 +31,19 @@ type Client struct {
 }
 
 type Hub struct {
-	clients    map[*Client]struct{}
-	rooms      *RoomManager
-	sessions   *SessionManager
-	db         *DB
-	trivia     *TriviaManager
-	history       *MessageLog
+	clients        map[*Client]struct{}
+	rooms          *RoomManager
+	sessions       *SessionManager
+	db             *DB
+	trivia         *TriviaManager
+	history        *MessageLog
 	releaseVersion string
 	releaseNotes   string
-	register   chan *Client
-	unregister chan *Client
-	mu         sync.RWMutex
-	rateMu     sync.Mutex
-	connRate   map[string][]time.Time
+	register       chan *Client
+	unregister     chan *Client
+	mu             sync.RWMutex
+	rateMu         sync.Mutex
+	connRate       map[string][]time.Time
 }
 
 func NewHub(db *DB, trivia *TriviaManager) *Hub {

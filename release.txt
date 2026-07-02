@@ -1,3 +1,3 @@
-1.7.5
-/roll D&D dice, /emote actions, @mentions + blips (/sound on by default)
-/ascii 24h persist, 100-piece library; /help rework. Hard refresh after update.
+1.7.6
+/rooms now handles switching (replaces /room); /thread now handles listing (replaces /threads)
+/roll D&D dice, /emote actions, @mentions + blips (/sound on by default). Hard refresh after update.

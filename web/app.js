@@ -1356,8 +1356,8 @@
 
   const COMMAND_INDEX = [
     'ascii', 'board', 'boards', 'brimley', 'create', 'emote', 'font', 'help',
-    'join', 'list', 'logout', 'nick', 'part', 'post', 'posts', 'roll', 'room',
-    'rooms', 'sound', 'theme', 'thread', 'threads', 'trivia', 'users'
+    'join', 'list', 'logout', 'nick', 'part', 'post', 'posts', 'roll',
+    'rooms', 'sound', 'theme', 'thread', 'trivia', 'users'
   ];
 
   function commandHelpText(name) {
@@ -1429,13 +1429,9 @@
         'Dice: d20, d12, d10, d%, d8, d6, d4, d2',
         'Usage: /roll d20  |  /roll 2d6+3  |  /roll d%-10'
       ],
-      room: [
-        '/room — switch active room (client-side focus)',
-        'Usage: /room #name'
-      ],
       rooms: [
-        '/rooms — numbered public room list',
-        'Usage: /rooms  |  /rooms <number>  (switch by list index)'
+        '/rooms — list public rooms, or switch your active room',
+        'Usage: /rooms  |  /rooms <number>  |  /rooms #name'
       ],
       sound: [
         '/sound — matrix blips for @mentions, trivia, and server chat (on by default)',
@@ -1448,12 +1444,8 @@
         'Themes: ' + themes
       ],
       thread: [
-        '/thread — create a message-board thread',
-        'Usage: /thread create <board> <title>'
-      ],
-      threads: [
-        '/threads — list threads on a board',
-        'Usage: /threads <board>'
+        '/thread — list or create message-board threads',
+        'Usage: /thread <board>  |  /thread create <board> <title>'
       ],
       trivia: [
         '/trivia — trivia game in public rooms (persists 24h)',
@@ -1701,6 +1693,16 @@
           send({ type: 'list' });
           break;
         }
+        if (arg.startsWith('#') || /^[a-z0-9_-]+$/i.test(arg)) {
+          const room = arg.startsWith('#') ? arg.toLowerCase() : ('#' + arg).toLowerCase();
+          setActiveRoom(room);
+          if (!joinedRooms.has(room)) {
+            joinedRooms.add(room);
+            send({ type: 'join', room });
+          }
+          writelnSystem('Active room: ' + room);
+          break;
+        }
         const n = parseInt(arg, 10);
         if (!n || n < 1) {
           showCommandHelp('rooms');
@@ -1745,14 +1747,11 @@
         }
         break;
 
-      case 'threads':
-        if (parts[1]) send({ type: 'thread_list', board: parts.slice(1).join(' ') });
-        else showCommandHelp('threads');
-        break;
-
       case 'thread':
         if (parts[1] === 'create' && parts.length >= 4) {
           send({ type: 'thread_create', board: parts[2], title: parts.slice(3).join(' ') });
+        } else if (parts[1]) {
+          send({ type: 'thread_list', board: parts.slice(1).join(' ') });
         } else {
           showCommandHelp('thread');
         }
@@ -1780,14 +1779,9 @@
         break;
 
       case 'room':
-        if (parts[1]) {
-          const room = parts[1].startsWith('#') ? parts[1].toLowerCase() : ('#' + parts[1]).toLowerCase();
-          setActiveRoom(room);
-          writelnSystem('Active room: ' + currentRoom);
-        } else {
-          showCommandHelp('room');
-        }
-        break;
+        // Back-compat alias: /room -> /rooms
+        parts[0] = 'rooms';
+        return handleCommand('/' + parts.join(' '));
 
       case 'brimley':
         toggleBrimley();

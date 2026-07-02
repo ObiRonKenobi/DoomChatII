@@ -54,18 +54,18 @@ type ServerMessage struct {
 	History   []HistoryEntry `json:"history,omitempty"`
 	Mentions  []string       `json:"mentions,omitempty"`
 	Nicks     []string       `json:"nicks,omitempty"`
-	Rooms    []string       `json:"rooms,omitempty"`
-	Question string         `json:"question,omitempty"`
-	Number   int            `json:"number,omitempty"`
-	Winner   string         `json:"winner,omitempty"`
-	Answer   string         `json:"answer,omitempty"`
-	NextIn   int            `json:"next_in,omitempty"`
-	Scores   map[string]int `json:"scores,omitempty"`
-	RoomList []RoomCount    `json:"room_list,omitempty"`
-	Version  string         `json:"version,omitempty"`
-	Boards   []BoardInfo    `json:"boards,omitempty"`
-	Threads  []ThreadInfo   `json:"threads,omitempty"`
-	Posts    []PostInfo     `json:"posts,omitempty"`
+	Rooms     []string       `json:"rooms,omitempty"`
+	Question  string         `json:"question,omitempty"`
+	Number    int            `json:"number,omitempty"`
+	Winner    string         `json:"winner,omitempty"`
+	Answer    string         `json:"answer,omitempty"`
+	NextIn    int            `json:"next_in,omitempty"`
+	Scores    map[string]int `json:"scores,omitempty"`
+	RoomList  []RoomCount    `json:"room_list,omitempty"`
+	Version   string         `json:"version,omitempty"`
+	Boards    []BoardInfo    `json:"boards,omitempty"`
+	Threads   []ThreadInfo   `json:"threads,omitempty"`
+	Posts     []PostInfo     `json:"posts,omitempty"`
 }
 
 type BoardInfo struct {

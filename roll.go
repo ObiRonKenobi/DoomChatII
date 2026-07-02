@@ -15,7 +15,7 @@ const (
 )
 
 var (
-	rollExprRE = regexp.MustCompile(`(?i)^(\d*)d(%|\d+)(?:\s*([+-]\s*\d+))?\s*$`)
+	rollExprRE   = regexp.MustCompile(`(?i)^(\d*)d(%|\d+)(?:\s*([+-]\s*\d+))?\s*$`)
 	dndDiceSides = map[int]struct{}{
 		2: {}, 4: {}, 6: {}, 8: {}, 10: {}, 12: {}, 20: {},
 	}
