@@ -1,2 +1,3 @@
-1.5.6
-Mobile: tap ✓ or keyboard Send to post messages like SMS. Chat scroll fixed so text stays above the input bar.
+1.5.7
+Trivia persists 24h in chat (highlight color); /rooms lists & switches; /brimley visual aids mode; banner fix
+Blank line after each message for readability. Hard refresh after update.

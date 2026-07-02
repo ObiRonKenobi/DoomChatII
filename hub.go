@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -131,6 +132,21 @@ func (h *Hub) broadcastRoom(room string, msg ServerMessage) {
 	if r, ok := h.rooms.Get(room); ok {
 		r.BroadcastAll(msg)
 	}
+}
+
+func (h *Hub) persistTrivia(room, text string) {
+	h.history.Add(room, "trivia", text, false)
+}
+
+func formatTriviaScores(scores map[string]int) string {
+	if len(scores) == 0 {
+		return "(none)"
+	}
+	parts := make([]string, 0, len(scores))
+	for k, v := range scores {
+		parts = append(parts, fmt.Sprintf("%s: %d", k, v))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func (h *Hub) broadcastRoomSystem(room, text string) {

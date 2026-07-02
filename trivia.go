@@ -168,6 +168,9 @@ func (rt *roomTrivia) run(hub *Hub, tm *TriviaManager) {
 		rt.Answer = strings.ToLower(strings.TrimSpace(q.Answer))
 		rt.mu.Unlock()
 
+		qText := "[Trivia] " + rt.CurrentQ
+		hub.persistTrivia(rt.Room, qText)
+
 		hub.broadcastRoom(rt.Room, ServerMessage{
 			Type:     "trivia_question",
 			Target:   TargetChat,
@@ -187,12 +190,14 @@ func (rt *roomTrivia) run(hub *Hub, tm *TriviaManager) {
 
 		select {
 		case <-rt.stopCh:
+			stopText := "Trivia stopped."
+			hub.persistTrivia(rt.Room, stopText)
 			hub.broadcastRoom(rt.Room, ServerMessage{
 				Type:   "chat",
 				Target: TargetChat,
 				Room:   rt.Room,
 				Nick:   "*trivia*",
-				Text:   "Trivia stopped.",
+				Text:   stopText,
 			})
 			rt.finish(hub, tm)
 			return
@@ -216,6 +221,8 @@ func (rt *roomTrivia) waitForAnswer(hub *Hub, tm *TriviaManager) bool {
 			rt.CurrentQ = ""
 			rt.Answer = ""
 			rt.mu.Unlock()
+			aText := "[Trivia] Time's up! Answer: " + ans
+			hub.persistTrivia(rt.Room, aText)
 			hub.broadcastRoom(rt.Room, ServerMessage{
 				Type:   "trivia_answer",
 				Target: TargetChat,
@@ -249,6 +256,9 @@ func (rt *roomTrivia) checkAnswer(nick, text string, hub *Hub, tm *TriviaManager
 	rt.CurrentQ = ""
 	rt.Answer = ""
 
+	aText := fmt.Sprintf("[Trivia] %s got it! Answer: %s", winner, ans)
+	hub.persistTrivia(rt.Room, aText)
+
 	hub.broadcastRoom(rt.Room, ServerMessage{
 		Type:   "trivia_answer",
 		Target: TargetChat,
@@ -257,6 +267,8 @@ func (rt *roomTrivia) checkAnswer(nick, text string, hub *Hub, tm *TriviaManager
 		Answer: ans,
 	})
 	if rt.Continuous {
+		sText := "[Trivia] Scores: " + formatTriviaScores(rt.Scores)
+		hub.persistTrivia(rt.Room, sText)
 		hub.broadcastRoom(rt.Room, ServerMessage{
 			Type:   "trivia_scores",
 			Target: TargetChat,
@@ -290,18 +302,22 @@ func (rt *roomTrivia) finish(hub *Hub, tm *TriviaManager) {
 	tm.mu.Unlock()
 
 	if continuous && len(scores) > 0 {
+		sText := "[Trivia] Scores: " + formatTriviaScores(scores)
+		hub.persistTrivia(rt.Room, sText)
 		hub.broadcastRoom(rt.Room, ServerMessage{
 			Type:   "trivia_scores",
 			Target: TargetChat,
 			Room:   rt.Room,
 			Scores: scores,
 		})
+		stopText := "Trivia game over."
+		hub.persistTrivia(rt.Room, stopText)
 		hub.broadcastRoom(rt.Room, ServerMessage{
 			Type:   "chat",
 			Target: TargetChat,
 			Room:   rt.Room,
 			Nick:   "*trivia*",
-			Text:   "Trivia game over.",
+			Text:   stopText,
 		})
 	}
 }

@@ -4,6 +4,7 @@
   --system: #00aa00;
   --error: #ff0000;
   --highlight: #00ff00;
+  --trivia: #ffff66;
   --font: "Courier New", Courier, monospace;
   --input-bar-height: 3.25rem;
   --mobile-header-height: 2.5rem;
@@ -348,4 +349,49 @@ html.is-mobile #cmd-input {
 
 html.is-mobile .chat-banner {
   font-size: 0.48rem;
+}
+
+html.brimley-mode {
+  --brimley-scale: 1.35;
+}
+
+html.brimley-mode .header h1,
+html.brimley-mode .room-label,
+html.brimley-mode .status,
+html.brimley-mode .pane-label,
+html.brimley-mode .pane-toggle,
+html.brimley-mode .prompt,
+html.brimley-mode #cmd-input,
+html.brimley-mode .cmd-send {
+  font-weight: 700;
+}
+
+html.brimley-mode .header h1 {
+  font-size: 1.15rem;
+}
+
+html.brimley-mode .room-label,
+html.brimley-mode .status {
+  font-size: 0.85rem;
+}
+
+html.brimley-mode .pane-toggle {
+  font-size: 0.95rem;
+}
+
+html.brimley-mode #cmd-input {
+  font-size: 18px;
+}
+
+html.brimley-mode.is-mobile #cmd-input {
+  font-size: 22px;
+}
+
+html.brimley-mode .chat-banner {
+  font-size: clamp(0.55rem, 1.4vw, 0.78rem);
+  font-weight: 700;
+}
+
+html.brimley-mode .terminal-host .xterm-rows {
+  font-weight: 700 !important;
 }

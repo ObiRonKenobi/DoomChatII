@@ -7,14 +7,14 @@
   const MAX_RECONNECTS = 10;
 
   const THEMES = {
-    matrix:  { bg: '#000000', fg: '#00FF00', system: '#00AA00', error: '#FF0000', highlight: '#00FF00', tripcode: '#00AA00' },
-    amber:   { bg: '#000000', fg: '#FFB000', system: '#CC8800', error: '#FF4444', highlight: '#FFD700', tripcode: '#FFD700' },
-    cobalt:  { bg: '#000000', fg: '#4488FF', system: '#3366CC', error: '#FF6666', highlight: '#66AAFF', tripcode: '#66AAFF' },
-    snow:    { bg: '#000000', fg: '#FFFFFF', system: '#AAAAAA', error: '#FF4444', highlight: '#FFFFFF', tripcode: '#AAAAAA' },
-    vintage: { bg: '#2B1B0E', fg: '#33FF33', system: '#228B22', error: '#FF6666', highlight: '#55FF55', tripcode: '#228B22' },
-    dracula: { bg: '#282a36', fg: '#f8f8f2', system: '#bd93f9', error: '#ff5555', highlight: '#50fa7b', tripcode: '#bd93f9' },
-    spawn:   { bg: '#0a0a0a', fg: '#39FF14', system: '#8B0000', error: '#FF2200', highlight: '#C0C0C0', tripcode: '#C0C0C0' },
-    merica:  { bg: '#002868', fg: '#FFFFFF', system: '#BF0A30', error: '#FF6666', highlight: '#BF0A30', tripcode: '#BF0A30' }
+    matrix:  { bg: '#000000', fg: '#00FF00', system: '#00AA00', error: '#FF0000', highlight: '#00FF00', tripcode: '#00AA00', trivia: '#FFFF66' },
+    amber:   { bg: '#000000', fg: '#FFB000', system: '#CC8800', error: '#FF4444', highlight: '#FFD700', tripcode: '#FFD700', trivia: '#FF8800' },
+    cobalt:  { bg: '#000000', fg: '#4488FF', system: '#3366CC', error: '#FF6666', highlight: '#66AAFF', tripcode: '#66AAFF', trivia: '#AA88FF' },
+    snow:    { bg: '#000000', fg: '#FFFFFF', system: '#AAAAAA', error: '#FF4444', highlight: '#FFFFFF', tripcode: '#AAAAAA', trivia: '#88CCFF' },
+    vintage: { bg: '#2B1B0E', fg: '#33FF33', system: '#228B22', error: '#FF6666', highlight: '#55FF55', tripcode: '#228B22', trivia: '#FFCC33' },
+    dracula: { bg: '#282a36', fg: '#f8f8f2', system: '#bd93f9', error: '#ff5555', highlight: '#50fa7b', tripcode: '#bd93f9', trivia: '#ffb86c' },
+    spawn:   { bg: '#0a0a0a', fg: '#39FF14', system: '#8B0000', error: '#FF2200', highlight: '#C0C0C0', tripcode: '#C0C0C0', trivia: '#FFD700' },
+    merica:  { bg: '#002868', fg: '#FFFFFF', system: '#BF0A30', error: '#FF6666', highlight: '#BF0A30', tripcode: '#BF0A30', trivia: '#FFD700' }
   };
 
   const FONTS = {
@@ -26,12 +26,12 @@
   };
 
   const BANNER = [
-    ' ██████╗  ██████╗  ██████╗ ███╗   ███╗ ██████╗██╗  ██╗ █████╗ ████████╗    ██╗ ██╗',
-    ' ██╔══██╗██╔═══██╗██╔═══██╗████╗ ████║██╔════╝██║  ██║██╔══██╗╚══██╔══╝    ██║ ██║',
-    ' ██║  ██║██║   ██║██║   ██║██╔████╔██║██║     ███████║███████║   ██║       ██║ ██║',
-    ' ██║  ██║██║   ██║██║   ██║██║╚██╔╝██║██║     ██╔══██║██╔══██║   ██║       ██║ ██║',
-    ' ██████╔╝╚██████╔╝╚██████╔╝██║ ╚═╝ ██║╚██████╗██║  ██║██║  ██║   ██║        ╚═╝ ╚═╝',
-    ' ╚═════╝  ╚═════╝  ╚═════╝ ╚═╝     ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝',
+    ' ██████╗  ██████╗  ██████╗ ███╗   ███╗ ██████╗██╗  ██╗ █████╗ ████████╗    ██╗  ██╗',
+    ' ██╔══██╗██╔═══██╗██╔═══██╗████╗ ████║██╔════╝██║  ██║██╔══██╗╚══██╔══╝    ██║  ██║',
+    ' ██║  ██║██║   ██║██║   ██║██╔████╔██║██║     ███████║███████║   ██║       ██║  ██║',
+    ' ██║  ██║██║   ██║██║   ██║██║╚██╔╝██║██║     ██╔══██║██╔══██║   ██║       ██║  ██║',
+    ' ██████╔╝╚██████╔╝╚██████╔╝██║ ╚═╝ ██║╚██████╗██║  ██║██║  ██║   ██║       ██║  ██║',
+    ' ╚═════╝  ╚═════╝  ╚═════╝ ╚═╝     ╚═╝ ╚═════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝        ╚═╝  ╚═╝',
     ''
   ];
 
@@ -118,6 +118,9 @@
   let fullNick = '';
   const joinedRooms = new Set(['#lobby']);
   const roomKeys = new Map();
+  let numberedPublicRooms = [];
+  const NORMAL_FONT_SIZE = 14;
+  const BRIMLEY_FONT_SIZE = 22;
 
   const statusEl = document.getElementById('status');
   const roomLabelEl = document.getElementById('room-label');
@@ -141,6 +144,7 @@
     disableStdin: true,
     convertEol: true,
     scrollback: 5000,
+    fontSize: settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE,
     theme: termTheme()
   });
   const systemTerm = new Terminal({
@@ -148,6 +152,7 @@
     disableStdin: true,
     convertEol: true,
     scrollback: 3000,
+    fontSize: settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE,
     theme: termTheme()
   });
   const chatFit = FitAddonCtor ? new FitAddonCtor() : null;
@@ -165,6 +170,7 @@
 
   applyTheme(settings.theme);
   applyFont(settings.font);
+  applyBrimley(settings.brimley);
   updateMobileClass();
   syncMobilePaneUI();
   fitTerminals();
@@ -215,7 +221,8 @@
           theme: s.theme || 'matrix',
           font: s.font || 'Courier New',
           last_nick: s.last_nick || '',
-          session_id: s.session_id || randomUUID()
+          session_id: s.session_id || randomUUID(),
+          brimley: !!s.brimley
         };
       }
     } catch (_) {}
@@ -223,7 +230,8 @@
       theme: 'matrix',
       font: 'Courier New',
       last_nick: '',
-      session_id: randomUUID()
+      session_id: randomUUID(),
+      brimley: false
     };
   }
 
@@ -250,6 +258,7 @@
     document.documentElement.style.setProperty('--error', t.error);
     document.documentElement.style.setProperty('--highlight', t.highlight);
     document.documentElement.style.setProperty('--tripcode', t.tripcode);
+    document.documentElement.style.setProperty('--trivia', t.trivia);
     chatTerm.options.theme = termTheme();
     systemTerm.options.theme = termTheme();
     saveSettings();
@@ -260,6 +269,26 @@
     settings.font = name;
     document.documentElement.style.setProperty('--font', FONTS[name]);
     saveSettings();
+  }
+
+  function applyBrimley(on) {
+    settings.brimley = !!on;
+    document.documentElement.classList.toggle('brimley-mode', settings.brimley);
+    const size = settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE;
+    chatTerm.options.fontSize = size;
+    systemTerm.options.fontSize = size;
+    saveSettings();
+    fitTerminals();
+    fitBanner();
+  }
+
+  function toggleBrimley() {
+    applyBrimley(!settings.brimley);
+    if (settings.brimley) {
+      writelnSystem('VISUAL AIDS MODE on — larger, bolder text. /brimley to toggle off.');
+    } else {
+      writelnSystem('VISUAL AIDS MODE off.');
+    }
   }
 
   function measureInputBar() {
@@ -468,20 +497,28 @@
         }
         break;
       case 'room_list':
-        writelnSystem('Public rooms: ' + (msg.text || formatRoomList(msg.room_list)));
+        numberedPublicRooms = msg.room_list || [];
+        if (numberedPublicRooms.length === 0) {
+          writelnSystem('No public rooms.');
+        } else {
+          const lines = numberedPublicRooms.map((r, i) =>
+            (i + 1) + '. ' + r.name + ' (' + r.count + ')' + (r.name === currentRoom ? ' *' : '')
+          );
+          writelnSystem('Public rooms (use /rooms <#> to switch):\n' + lines.join('\n'));
+        }
         break;
       case 'trivia_question':
-        writelnChat('[Trivia] ' + msg.question);
+        writeTriviaEntry('[Trivia] ' + msg.question);
         break;
       case 'trivia_answer':
         if (msg.winner) {
-          writelnChat('[Trivia] ' + formatNickColored(msg.winner, false) + ' got it! Answer: ' + msg.answer);
+          writeTriviaEntry('[Trivia] ' + formatNickColored(msg.winner, false) + ' got it! Answer: ' + msg.answer);
         } else {
-          writelnChat('[Trivia] Time\'s up! Answer: ' + msg.answer);
+          writeTriviaEntry('[Trivia] Time\'s up! Answer: ' + msg.answer);
         }
         break;
       case 'trivia_scores':
-        writelnChat('[Trivia] Scores: ' + formatScores(msg.scores));
+        writeTriviaEntry('[Trivia] Scores: ' + formatScores(msg.scores));
         break;
       default:
         break;
@@ -526,6 +563,10 @@
   async function renderChatLine(msg) {
     let text = msg.text;
     const room = msg.room || currentRoom;
+    if (isTriviaNick(msg.nick)) {
+      writeTriviaEntry(text, formatTimestamp(msg.timestamp));
+      return;
+    }
     if (msg.enc || isEncryptedRoom(room)) {
       try {
         const key = roomKeys.get(room);
@@ -555,6 +596,35 @@
     parts.forEach((part, i) => {
       chatTerm.writeln(i === 0 ? tsPrefix + part : indent + part);
     });
+    chatTerm.writeln('');
+    chatTerm.scrollToBottom();
+  }
+
+  function isTriviaNick(nick) {
+    return nick === 'trivia' || nick === '*trivia*';
+  }
+
+  function triviaColor() {
+    const t = THEMES[settings.theme] || THEMES.matrix;
+    return ansiFg(t.trivia || t.highlight);
+  }
+
+  function writeTriviaEntry(text, timestamp) {
+    const color = triviaColor();
+    const reset = '\x1b[0m';
+    const bold = '\x1b[1m';
+    const tsPrefix = timestamp ? '[' + timestamp + '] ' : '';
+    const cols = termCols(chatTerm);
+    const prefixLen = stripAnsi(tsPrefix).length;
+    const plain = stripAnsi(text);
+    const parts = wrapPlainWordsWithPrefix(plain, cols, prefixLen);
+    const indent = ' '.repeat(prefixLen);
+    const styledPrefix = bold + color;
+    parts.forEach((part, i) => {
+      const line = i === 0 ? tsPrefix + part : indent + part;
+      chatTerm.writeln(styledPrefix + line + reset);
+    });
+    chatTerm.writeln('');
     chatTerm.scrollToBottom();
   }
 
@@ -793,8 +863,11 @@
           '/font <name>        — Courier New|IBM Plex Mono|Fira Code|JetBrains Mono|Lucida Console',
           '/trivia             — ask one random question (30s)',
           '/trivia start|stop  — continuous trivia game',
+          '/rooms              — list public rooms (numbered)',
+          '/rooms <#>          — switch to room by list number',
           '/list               — public rooms and user counts',
           '/users [#room]      — users currently in a room',
+          '/brimley            — toggle VISUAL AIDS MODE (large bold text)',
           '/boards             — list message boards',
           '/board create Name  — create board',
           '/threads Board      — list threads',
@@ -913,6 +986,36 @@
         send({ type: 'list' });
         break;
 
+      case 'rooms': {
+        const arg = parts[1];
+        if (!arg) {
+          send({ type: 'list' });
+          break;
+        }
+        const n = parseInt(arg, 10);
+        if (!n || n < 1) {
+          writelnSystem('Usage: /rooms  OR  /rooms <number>', true);
+          break;
+        }
+        if (!numberedPublicRooms.length) {
+          writelnSystem('Run /rooms first to load the numbered room list.', true);
+          break;
+        }
+        const picked = numberedPublicRooms[n - 1];
+        if (!picked) {
+          writelnSystem('No room #' + n + '. Run /rooms to refresh the list.', true);
+          break;
+        }
+        const room = picked.name;
+        setActiveRoom(room);
+        if (!joinedRooms.has(room)) {
+          joinedRooms.add(room);
+          send({ type: 'join', room });
+        }
+        writelnSystem('Active room: ' + room);
+        break;
+      }
+
       case 'sers':
       case 'users': {
         let room = parts[1] || currentRoom;
@@ -973,6 +1076,10 @@
           setActiveRoom(room);
           writelnSystem('Active room: ' + currentRoom);
         }
+        break;
+
+      case 'brimley':
+        toggleBrimley();
         break;
 
       default:

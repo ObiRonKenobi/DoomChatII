@@ -39,8 +39,11 @@ Environment variables (see [`.env.example`](.env.example)):
 | `/font Fira Code` | Fonts: Courier New, IBM Plex Mono, Fira Code, JetBrains Mono, Lucida Console |
 | `/trivia` | Ask one random question (30s, answer revealed if unsolved) |
 | `/trivia start` / `stop` | Continuous random trivia game in chat pane |
+| `/rooms` | List public rooms with numbers |
+| `/rooms <#>` | Switch to a room by its list number |
 | `/list` | List public rooms and user counts |
 | `/users` | List users in the current room (or `/users #room`) |
+| `/brimley` | Toggle VISUAL AIDS MODE (larger, bolder text) |
 | `/boards` | List message boards |
 | `/board create Name` | Create a board |
 | `/threads Board` | List threads |
@@ -52,13 +55,14 @@ Environment variables (see [`.env.example`](.env.example)):
 
 ## Architecture
 
-- **Server:** Go single binary — WebSocket hub, rooms, sessions, SQLite boards, trivia
+- **Server:** Go single binary — WebSocket hub, rooms, sessions, SQLite boards + chat history, trivia
 - **Client:** Static HTML/CSS/JS — dual xterm panes (chat 2/3, system 1/3)
 - **Sessions:** Client UUID in localStorage; server restores nick/rooms on WS reconnect within 30s
+- **History:** Chat and trivia messages persist in SQLite for 24 hours per room
 
-## Deploy (Oracle Cloud — public IP)
+## Deploy (Oracle Cloud Always Free)
 
-**Cost:** $0 (Always Free VM). **URL:** `http://YOUR_PUBLIC_IP:8080` (no domain or Cloudflare needed to start).
+**Cost:** $0 on Always Free tier. **URL:** `http://YOUR_PUBLIC_IP:8080` — no domain required.
 
 > OCI signup may ask for a credit card for identity verification; stay within Always Free limits to avoid charges.
 
@@ -66,40 +70,30 @@ Environment variables (see [`.env.example`](.env.example)):
 
 1. Sign up at [oracle.com/cloud/free](https://www.oracle.com/cloud/free/)
 2. **Compute → Instances → Create instance**
-3. **Ubuntu 22.04**, shape **VM.Standard.A1.Flex** (1 OCPU / 6 GB) or **E2.1.Micro** if out of capacity
-4. Assign a **public IPv4**, paste your **SSH public key**
-5. **Create** — note the public IP (e.g. `129.146.x.x`)
+3. **Ubuntu 22.04**, shape **VM.Standard.A1.Flex** (1 OCPU / 6 GB) or **E2.1.Micro** if A1 is unavailable
+4. Assign a **public IPv4** and add your **SSH public key**
+5. **Create** — note the public IP address
 
 ### 2. Open firewall ports
 
-On the instance’s subnet **Security list**, add ingress rules:
+On the instance subnet **Security list**, add ingress rules:
 
 | Source | Port | Purpose |
 |--------|------|---------|
-| `YOUR_IP/32` | 22 | SSH |
+| Your IP (recommended) or `0.0.0.0/0` | 22 | SSH |
 | `0.0.0.0/0` | 8080 | DoomChat (HTTP + WebSocket) |
 
-For testing you can use `0.0.0.0/0` on 8080; tighten to your IP later if you prefer.
-
-Also check **Ubuntu firewall** on the VM if enabled: `sudo ufw allow 8080/tcp`
+If Ubuntu firewall is enabled on the VM: `sudo ufw allow 8080/tcp`
 
 ### 3. Install and run
 
-**From your home machine**, SSH into the VM (use your key if you created one during setup):
+SSH into the VM (replace with your username and IP):
 
 ```bash
-ssh -i ~/.ssh/doomchat_oci ubuntu@YOUR_PUBLIC_IP
+ssh ubuntu@YOUR_PUBLIC_IP
 ```
 
-Example: `ssh -i ~/.ssh/doomchat_oci ubuntu@150.136.168.78`
-
-If you get `Permission denied (publickey)`, check the key path and permissions:
-
-```bash
-chmod 600 ~/.ssh/doomchat_oci
-```
-
-**On the VM**, clone and start the app:
+On the VM:
 
 ```bash
 git clone https://github.com/ObiRonKenobi/DoomChatII.git /opt/doomchat-ii
@@ -111,13 +105,11 @@ echo "BASE_URL=http://YOUR_PUBLIC_IP:8080" > .env
 sudo docker compose up -d --build
 ```
 
-Exit the VM when done: `exit`
+Chat history is stored in a Docker volume (`doomchat_data`) mounted at `/data` inside the container — it survives container restarts and redeploys.
 
 ### 4. Use it
 
-Open in browser: **http://YOUR_PUBLIC_IP:8080**
-
-WebSocket connects automatically as `ws://YOUR_PUBLIC_IP:8080/ws`.
+Open **http://YOUR_PUBLIC_IP:8080** in a browser.
 
 ```bash
 curl http://YOUR_PUBLIC_IP:8080/health   # → ok
@@ -125,92 +117,55 @@ curl http://YOUR_PUBLIC_IP:8080/health   # → ok
 
 Hard-refresh after updates: **Ctrl+Shift+R** (desktop) or clear cache / reload (mobile).
 
-### 5. Deploy updates (publish a new version)
+### 5. Deploy updates
 
-Run these steps whenever you push changes to GitHub and want them live on the VM.
-
-**A. On your home machine** (optional — only if you changed code locally and need to push first):
+**On your dev machine** — push changes to GitHub:
 
 ```bash
-cd ~/Projects/DoomChatII
-# edit release.txt — bump version on line 1, update bullet list
+cd /path/to/DoomChatII
+# bump version in release.txt (line 1) and summarize changes
 git add -A
 git commit -m "Describe your changes"
 git push origin main
 ```
 
-**B. SSH into the VM** (from your home machine):
+**On the VM** — pull, rebuild, restart (does **not** delete chat history):
 
 ```bash
-ssh -i ~/.ssh/doomchat_oci ubuntu@YOUR_PUBLIC_IP
-```
-
-**C. On the VM**, pull, rebuild, and restart:
-
-```bash
+ssh ubuntu@YOUR_PUBLIC_IP
 cd /opt/doomchat-ii
 git pull
 sudo docker compose build doomchat
 sudo docker compose up -d
-```
-
-**D. Verify** (still on the VM):
-
-```bash
-sudo docker compose ps
 curl http://127.0.0.1:8080/health
 ```
 
-You should see the container **Up (healthy)** and `curl` should print `ok`.
-
-**E. Exit SSH and reload the app in your browser:**
-
-```bash
-exit
-```
-
-Open **http://YOUR_PUBLIC_IP:8080** and hard-refresh. New connects show the `[server]` release notes in the SYSTEM pane (once per version).
-
-**Notes:**
-
-- Before each publish, bump the version on **line 1** of [`release.txt`](release.txt) and edit the bullet list. The server announces it on connect and reminds users to reload.
-- Chat messages live in SQLite on the Docker `/data` volume — they survive restarts and keep their original 24-hour expiry.
-- If SSH times out, your home IP may have changed; update the Oracle security list ingress rule for port **22**.
+New connects see a `[server]` update line in chat when the version in `release.txt` changes. Bump line 1 of `release.txt` before each publish.
 
 ### Optional later: HTTPS + domain
 
-Add Cloudflare (quick or named tunnel) when you want `https://` — see [`deploy/`](deploy/) scripts. Not required for IP-only testing.
-
----
-
-## Deploy (Fly.io — paid)
-
-Fly.io no longer has a free tier for new accounts. Use only if you add a payment method (~$3–5+/month).
-
-```bash
-fly auth login
-fly volumes create doomchat_data --region iad --size 1
-fly deploy
-```
+See [`deploy/`](deploy/) for Cloudflare tunnel scripts when you want `https://` and a custom domain. Not required for IP-only use.
 
 ## Project layout
 
 ```
-main.go       Server entry, HTTP routes
-hub.go        WebSocket hub and client registry
-client.go     Per-connection message handling
-room.go       Room management
-session.go    Session persistence (in-memory TTL)
-db.go         SQLite boards
-boards.go     Board command handlers
-trivia.go     Trivia bot
-protocol.go   Wire message types
-web/          Frontend (xterm.js)
-trivia.json   Question bank
+main.go            Server entry, HTTP routes
+hub.go             WebSocket hub and client registry
+client.go          Per-connection message handling
+room.go            Room management
+session.go         Session persistence (in-memory TTL)
+history.go         24h chat/trivia message log
+db.go              SQLite schema
+chat_db.go         Chat message persistence
+boards.go          Board command handlers
+trivia.go          Trivia bot
+release.go         Version announcements
+protocol.go        Wire message types
+web/               Frontend (xterm.js)
+trivia.json        Question bank
 Dockerfile         Container build
-docker-compose.yml Local / VM deploy
-deploy/            Oracle + Cloudflare setup scripts
-fly.toml           Fly.io config (optional, paid)
+docker-compose.yml VM / local deploy with persistent volume
+deploy/            Oracle setup scripts
 ```
 
 ## License
