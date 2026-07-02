@@ -108,6 +108,10 @@ func validateNick(nick string) bool {
 	if strings.ContainsAny(nick, " \t\r\n#") {
 		return false
 	}
+	switch strings.ToLower(nick) {
+	case "trivia", "*trivia*", "ascii", "roll", "emote", "server":
+		return false
+	}
 	bang := strings.Index(nick, "!")
 	if bang >= 0 {
 		if bang == 0 {

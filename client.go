@@ -157,7 +157,12 @@ func (c *Client) handleHello(h *Hub, msg ClientMessage) {
 func (c *Client) handleNick(h *Hub, msg ClientMessage) {
 	nick := strings.TrimSpace(msg.Nick)
 	if !validateNick(nick) {
-		c.sendError("invalid nick")
+		switch strings.ToLower(nick) {
+		case "trivia", "*trivia*", "ascii", "roll", "emote", "server":
+			c.sendError("nick reserved — pick another name")
+		default:
+			c.sendError("invalid nick")
+		}
 		return
 	}
 	c.mu.Lock()

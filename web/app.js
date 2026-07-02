@@ -650,7 +650,9 @@
     const room = msg.room || currentRoom;
     const members = roomMemberNicks.get(room) || new Set();
     for (const entry of msg.history) {
-      if (entry.nick && entry.nick !== 'ascii' && entry.nick !== 'trivia' && entry.nick !== 'roll' && entry.nick !== 'emote' && entry.nick !== 'server') {
+      // Track all nicks we see in history so mention highlighting works reliably.
+      // "System" nicks are reserved server-side, but older history may still contain them.
+      if (entry.nick) {
         members.add(entry.nick);
       }
       await renderChatLine({
