@@ -145,6 +145,7 @@
     convertEol: true,
     scrollback: 5000,
     fontSize: settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE,
+    fontWeight: settings.brimley ? 'bold' : 'normal',
     theme: termTheme()
   });
   const systemTerm = new Terminal({
@@ -153,6 +154,7 @@
     convertEol: true,
     scrollback: 3000,
     fontSize: settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE,
+    fontWeight: settings.brimley ? 'bold' : 'normal',
     theme: termTheme()
   });
   const chatFit = FitAddonCtor ? new FitAddonCtor() : null;
@@ -275,11 +277,24 @@
     settings.brimley = !!on;
     document.documentElement.classList.toggle('brimley-mode', settings.brimley);
     const size = settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE;
+    const weight = settings.brimley ? 'bold' : 'normal';
     chatTerm.options.fontSize = size;
     systemTerm.options.fontSize = size;
+    chatTerm.options.fontWeight = weight;
+    systemTerm.options.fontWeight = weight;
     saveSettings();
-    fitTerminals();
-    fitBanner();
+    scheduleFitTerminals();
+  }
+
+  function scheduleFitTerminals() {
+    measureInputBar();
+    requestAnimationFrame(() => {
+      fitTerminals();
+      fitBanner();
+      requestAnimationFrame(() => {
+        fitTerminals();
+      });
+    });
   }
 
   function toggleBrimley() {
@@ -315,6 +330,20 @@
       if (chatFit) chatFit.fit();
       if (systemFit) systemFit.fit();
     } catch (_) {}
+  }
+
+  function termHostWidth(term) {
+    const host = term.element && term.element.parentElement;
+    return host ? host.clientWidth : 0;
+  }
+
+  function estimateColsFromHost(term) {
+    const width = termHostWidth(term);
+    if (width <= 0) return 0;
+    const fontSize = term.options.fontSize || NORMAL_FONT_SIZE;
+    const weight = term.options.fontWeight || 'normal';
+    const charW = fontSize * (weight === 'bold' ? 0.62 : 0.6);
+    return Math.floor(width / charW);
   }
 
   function detectMobile() {
@@ -644,10 +673,13 @@
 
   function termCols(term) {
     let cols = term.cols || 0;
+    if (cols < 8) {
+      cols = estimateColsFromHost(term);
+    }
     if (cols < 8 && isMobileLayout()) {
-      const host = term.element && term.element.parentElement;
-      const w = host ? host.clientWidth : window.innerWidth;
-      cols = Math.floor(w / 8);
+      const w = termHostWidth(term) || window.innerWidth;
+      const fontSize = term.options.fontSize || NORMAL_FONT_SIZE;
+      cols = Math.floor(w / (fontSize * 0.6));
     }
     const pad = isMobileLayout() ? 2 : 1;
     return Math.max(cols - pad, 8);

@@ -83,16 +83,21 @@ body {
 
 .terminal-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   gap: 0;
   min-height: 0;
+  min-width: 0;
   overflow: hidden;
+  width: 100%;
 }
 
 .pane {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   border-right: 1px solid var(--system);
 }
 
@@ -392,6 +397,15 @@ html.brimley-mode .chat-banner {
   font-weight: 700;
 }
 
-html.brimley-mode .terminal-host .xterm-rows {
-  font-weight: 700 !important;
+/* Desktop brimley: keep 2:1 panes locked; xterm font metrics set in JS (not CSS bold). */
+html.brimley-mode:not(.is-mobile) .terminal-grid {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+html.brimley-mode:not(.is-mobile) .pane,
+html.brimley-mode:not(.is-mobile) .terminal-host,
+html.brimley-mode:not(.is-mobile) .terminal-host .xterm {
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
