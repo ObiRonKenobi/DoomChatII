@@ -84,6 +84,12 @@ func (c *Client) handleMessage(h *Hub, msg ClientMessage) {
 		c.handleTriviaStop(h, msg)
 	case "trivia_once":
 		c.handleTriviaOnce(h, msg)
+	case "ascii":
+		c.handleAscii(h, msg)
+	case "roll":
+		c.handleRoll(h, msg)
+	case "emote":
+		c.handleEmote(h, msg)
 	case "list":
 		c.handleList(h)
 	case "users":
@@ -215,6 +221,7 @@ func (c *Client) handleChat(h *Hub, msg ClientMessage) {
 	}
 
 	now := time.Now().UTC()
+	mentions := findMentions(msg.Text, room)
 	h.history.Add(roomName, nick, msg.Text, msg.Enc)
 
 	out := ServerMessage{
@@ -224,6 +231,7 @@ func (c *Client) handleChat(h *Hub, msg ClientMessage) {
 		Nick:      nick,
 		Text:      msg.Text,
 		Timestamp: now.UnixMilli(),
+		Mentions:  mentions,
 	}
 	room.Broadcast(out, nil)
 }
@@ -306,6 +314,174 @@ func (c *Client) handleTriviaStop(h *Hub, msg ClientMessage) {
 	}
 	h.trivia.Stop(roomName, h)
 	c.sendSystem("Trivia stopped in " + roomName)
+}
+
+func (c *Client) handleAscii(h *Hub, msg ClientMessage) {
+	roomName := normalizeRoom(msg.Room)
+	if roomName == "" {
+		roomName = lobbyRoom
+	}
+	c.mu.Lock()
+	nick := c.nick
+	_, inRoom := c.rooms[roomName]
+	c.mu.Unlock()
+
+	if nick == "" {
+		c.sendError("set a nick first: /nick YourName#secret")
+		return
+	}
+	if !inRoom {
+		c.sendError("not in room " + roomName)
+		return
+	}
+
+	room, ok := h.rooms.Get(roomName)
+	if !ok {
+		c.sendError("room not found")
+		return
+	}
+	if room.Encrypted {
+		c.sendError("ascii art only in public rooms")
+		return
+	}
+
+	artID := strings.TrimSpace(strings.ToLower(msg.Text))
+	if !validateAsciiID(artID) {
+		c.sendError("invalid ascii art id")
+		return
+	}
+
+	now := time.Now().UTC()
+	h.history.Add(roomName, "ascii", artID, false)
+	out := ServerMessage{
+		Type:      "chat",
+		Target:    TargetChat,
+		Room:      roomName,
+		Nick:      "ascii",
+		Text:      artID,
+		Timestamp: now.UnixMilli(),
+	}
+	room.Broadcast(out, nil)
+}
+
+func (c *Client) handleRoll(h *Hub, msg ClientMessage) {
+	roomName := normalizeRoom(msg.Room)
+	if roomName == "" {
+		roomName = lobbyRoom
+	}
+	c.mu.Lock()
+	nick := c.nick
+	_, inRoom := c.rooms[roomName]
+	c.mu.Unlock()
+
+	if nick == "" {
+		c.sendError("set a nick first: /nick YourName#secret")
+		return
+	}
+	if !inRoom {
+		c.sendError("not in room " + roomName)
+		return
+	}
+
+	room, ok := h.rooms.Get(roomName)
+	if !ok {
+		c.sendError("room not found")
+		return
+	}
+	if room.Encrypted {
+		c.sendError("rolls only in public rooms")
+		return
+	}
+
+	expr := strings.TrimSpace(msg.Text)
+	if !validateRollExpr(expr) {
+		c.sendError(rollUsageHint())
+		return
+	}
+
+	detail, err := executeRoll(expr)
+	if err != nil {
+		c.sendError(err.Error())
+		return
+	}
+	text := formatRollMessage(nick, detail)
+	now := time.Now().UTC()
+	h.history.Add(roomName, "roll", text, false)
+	out := ServerMessage{
+		Type:      "chat",
+		Target:    TargetChat,
+		Room:      roomName,
+		Nick:      "roll",
+		Text:      text,
+		Timestamp: now.UnixMilli(),
+	}
+	room.Broadcast(out, nil)
+}
+
+func (c *Client) handleEmote(h *Hub, msg ClientMessage) {
+	roomName := normalizeRoom(msg.Room)
+	if roomName == "" {
+		roomName = lobbyRoom
+	}
+	c.mu.Lock()
+	nick := c.nick
+	_, inRoom := c.rooms[roomName]
+	c.mu.Unlock()
+
+	if nick == "" {
+		c.sendError("set a nick first: /nick YourName#secret")
+		return
+	}
+	if !inRoom {
+		c.sendError("not in room " + roomName)
+		return
+	}
+
+	room, ok := h.rooms.Get(roomName)
+	if !ok {
+		c.sendError("room not found")
+		return
+	}
+	if room.Encrypted {
+		c.sendError("emotes only in public rooms")
+		return
+	}
+
+	emoteName := strings.TrimSpace(strings.ToLower(msg.Text))
+	targetRaw := strings.TrimSpace(msg.Name)
+	if emoteName == "" || targetRaw == "" {
+		c.sendError("usage: /emote <name> <nick>  — try /emote for list")
+		return
+	}
+	if !validateEmote(emoteName) {
+		c.sendError("unknown emote — try: " + strings.Join(emoteList(), ", "))
+		return
+	}
+
+	targetNick, found := resolveRoomMember(room, targetRaw)
+	if !found {
+		c.sendError("user not in room: " + targetRaw)
+		return
+	}
+
+	text, err := formatEmote(emoteName, nick, targetNick)
+	if err != nil {
+		c.sendError(err.Error())
+		return
+	}
+	mentions := findMentions("@"+targetNick, room)
+	now := time.Now().UTC()
+	h.history.Add(roomName, "emote", text, false)
+	out := ServerMessage{
+		Type:      "chat",
+		Target:    TargetChat,
+		Room:      roomName,
+		Nick:      "emote",
+		Text:      text,
+		Timestamp: now.UnixMilli(),
+		Mentions:  mentions,
+	}
+	room.Broadcast(out, nil)
 }
 
 func (c *Client) handleTriviaOnce(h *Hub, msg ClientMessage) {

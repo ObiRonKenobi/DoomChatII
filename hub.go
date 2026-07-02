@@ -213,6 +213,12 @@ func (c *Client) joinRoom(h *Hub, roomName string) error {
 			History: entries,
 		})
 	}
+	c.Send(ServerMessage{
+		Type:   "room_users",
+		Target: TargetSystem,
+		Room:   roomName,
+		Nicks:  room.MemberNickList(),
+	})
 	if nick != "" {
 		h.broadcastRoomSystem(roomName, nick+" has joined.")
 	}

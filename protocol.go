@@ -52,6 +52,8 @@ type ServerMessage struct {
 	Text      string         `json:"text,omitempty"`
 	Timestamp int64          `json:"timestamp,omitempty"`
 	History   []HistoryEntry `json:"history,omitempty"`
+	Mentions  []string       `json:"mentions,omitempty"`
+	Nicks     []string       `json:"nicks,omitempty"`
 	Rooms    []string       `json:"rooms,omitempty"`
 	Question string         `json:"question,omitempty"`
 	Number   int            `json:"number,omitempty"`
@@ -128,6 +130,22 @@ func validateNick(nick string) bool {
 
 func validateText(text string) bool {
 	return text != "" && utf8.RuneCountInString(text) <= maxMessageLen
+}
+
+func validateAsciiID(id string) bool {
+	if id == "" || len(id) > 64 {
+		return false
+	}
+	if id == "random" || id == "list" {
+		return false
+	}
+	for _, r := range id {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func normalizeRoom(name string) string {

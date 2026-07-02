@@ -114,6 +114,22 @@ func (r *Room) MemberNicks() []string {
 	return out
 }
 
+func (r *Room) MemberNickList() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	var nicks []string
+	for m := range r.members {
+		m.mu.Lock()
+		nick := m.nick
+		m.mu.Unlock()
+		if nick != "" {
+			nicks = append(nicks, nick)
+		}
+	}
+	sort.Strings(nicks)
+	return nicks
+}
+
 func (r *Room) Broadcast(msg ServerMessage, exclude *Client) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

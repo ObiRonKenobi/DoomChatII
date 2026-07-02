@@ -7,14 +7,14 @@
   const MAX_RECONNECTS = 10;
 
   const THEMES = {
-    matrix:  { bg: '#000000', fg: '#00FF00', system: '#00AA00', error: '#FF0000', highlight: '#00FF00', tripcode: '#00AA00', trivia: '#FFFF66' },
-    amber:   { bg: '#000000', fg: '#FFB000', system: '#CC8800', error: '#FF4444', highlight: '#FFD700', tripcode: '#FFD700', trivia: '#FF8800' },
-    cobalt:  { bg: '#000000', fg: '#4488FF', system: '#3366CC', error: '#FF6666', highlight: '#66AAFF', tripcode: '#66AAFF', trivia: '#AA88FF' },
-    snow:    { bg: '#000000', fg: '#FFFFFF', system: '#AAAAAA', error: '#FF4444', highlight: '#FFFFFF', tripcode: '#AAAAAA', trivia: '#88CCFF' },
-    vintage: { bg: '#2B1B0E', fg: '#33FF33', system: '#228B22', error: '#FF6666', highlight: '#55FF55', tripcode: '#228B22', trivia: '#FFCC33' },
-    dracula: { bg: '#282a36', fg: '#f8f8f2', system: '#bd93f9', error: '#ff5555', highlight: '#50fa7b', tripcode: '#bd93f9', trivia: '#ffb86c' },
-    spawn:   { bg: '#0a0a0a', fg: '#39FF14', system: '#8B0000', error: '#FF2200', highlight: '#C0C0C0', tripcode: '#C0C0C0', trivia: '#FFD700' },
-    merica:  { bg: '#002868', fg: '#FFFFFF', system: '#BF0A30', error: '#FF6666', highlight: '#BF0A30', tripcode: '#BF0A30', trivia: '#FFD700' }
+    matrix:  { bg: '#000000', fg: '#00FF00', system: '#00AA00', error: '#FF0000', highlight: '#00FF00', tripcode: '#00AA00', trivia: '#FFFF66', mention: '#66FFEE' },
+    amber:   { bg: '#000000', fg: '#FFB000', system: '#CC8800', error: '#FF4444', highlight: '#FFD700', tripcode: '#FFD700', trivia: '#FF8800', mention: '#FFEE88' },
+    cobalt:  { bg: '#000000', fg: '#4488FF', system: '#3366CC', error: '#FF6666', highlight: '#66AAFF', tripcode: '#66AAFF', trivia: '#AA88FF', mention: '#88FFFF' },
+    snow:    { bg: '#000000', fg: '#FFFFFF', system: '#AAAAAA', error: '#FF4444', highlight: '#FFFFFF', tripcode: '#AAAAAA', trivia: '#88CCFF', mention: '#AAEEFF' },
+    vintage: { bg: '#2B1B0E', fg: '#33FF33', system: '#228B22', error: '#FF6666', highlight: '#55FF55', tripcode: '#228B22', trivia: '#FFCC33', mention: '#88FFAA' },
+    dracula: { bg: '#282a36', fg: '#f8f8f2', system: '#bd93f9', error: '#ff5555', highlight: '#50fa7b', tripcode: '#bd93f9', trivia: '#ffb86c', mention: '#8be9fd' },
+    spawn:   { bg: '#0a0a0a', fg: '#39FF14', system: '#8B0000', error: '#FF2200', highlight: '#C0C0C0', tripcode: '#C0C0C0', trivia: '#FFD700', mention: '#7FFF00' },
+    merica:  { bg: '#002868', fg: '#FFFFFF', system: '#BF0A30', error: '#FF6666', highlight: '#BF0A30', tripcode: '#BF0A30', trivia: '#FFD700', mention: '#87CEEB' }
   };
 
   const FONTS = {
@@ -22,7 +22,10 @@
     'IBM Plex Mono': '"IBM Plex Mono", monospace',
     'Fira Code': '"Fira Code", monospace',
     'JetBrains Mono': '"JetBrains Mono", monospace',
-    'Lucida Console': '"Lucida Console", "Lucida Sans Typewriter", monospace'
+    'Lucida Console': '"Lucida Console", "Lucida Sans Typewriter", monospace',
+    'Times New Roman': '"Times New Roman", Times, "Liberation Serif", serif',
+    'VT323': '"VT323", monospace',
+    'Press Start': '"Press Start 2P", monospace'
   };
 
   const BANNER = [
@@ -118,9 +121,10 @@
   let fullNick = '';
   const joinedRooms = new Set(['#lobby']);
   const roomKeys = new Map();
+  const roomMemberNicks = new Map();
   let numberedPublicRooms = [];
   const NORMAL_FONT_SIZE = 14;
-  const BRIMLEY_FONT_SIZE = 22;
+  const BRIMLEY_FONT_SIZE = 24;
 
   const statusEl = document.getElementById('status');
   const roomLabelEl = document.getElementById('room-label');
@@ -224,7 +228,8 @@
           font: s.font || 'Courier New',
           last_nick: s.last_nick || '',
           session_id: s.session_id || randomUUID(),
-          brimley: !!s.brimley
+          brimley: !!s.brimley,
+          sound: s.sound !== undefined ? !!s.sound : true
         };
       }
     } catch (_) {}
@@ -233,7 +238,8 @@
       font: 'Courier New',
       last_nick: '',
       session_id: randomUUID(),
-      brimley: false
+      brimley: false,
+      sound: true
     };
   }
 
@@ -261,6 +267,7 @@
     document.documentElement.style.setProperty('--highlight', t.highlight);
     document.documentElement.style.setProperty('--tripcode', t.tripcode);
     document.documentElement.style.setProperty('--trivia', t.trivia);
+    document.documentElement.style.setProperty('--mention', t.mention || t.highlight);
     chatTerm.options.theme = termTheme();
     systemTerm.options.theme = termTheme();
     saveSettings();
@@ -271,28 +278,82 @@
     settings.font = name;
     document.documentElement.style.setProperty('--font', FONTS[name]);
     saveSettings();
+    relayoutBothTerminals();
+  }
+
+  function syncTerminalFonts() {
+    const family = FONTS[settings.font] || FONTS['Courier New'];
+    const size = settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE;
+    const weight = settings.brimley ? 'bold' : 'normal';
+    [chatTerm, systemTerm].forEach((term) => {
+      term.options.fontFamily = family;
+      term.options.fontSize = size;
+      term.options.fontWeight = weight;
+      term.options.fontWeightBold = 'bold';
+      try {
+        const rs = term._core && term._core._renderService;
+        if (rs && typeof rs.clear === 'function') {
+          rs.clear();
+        }
+      } catch (_) {}
+    });
+  }
+
+  function refreshTerminalPaint(term) {
+    try {
+      if (term._core && term._core.viewport) {
+        term._core.viewport.syncScrollArea();
+      }
+      if (term.rows > 0) {
+        term.refresh(0, term.rows - 1);
+      }
+    } catch (_) {}
+  }
+
+  function relayoutBothTerminals() {
+    syncTerminalFonts();
+    const family = FONTS[settings.font] || FONTS['Courier New'];
+    const size = settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE;
+    const weight = settings.brimley ? 'bold' : 'normal';
+    const plainFamily = family.replace(/"/g, '');
+    const loadFonts = (document.fonts && document.fonts.load)
+      ? Promise.all([
+          document.fonts.load(`${size}px ${plainFamily}`),
+          document.fonts.load(`${weight} ${size}px ${plainFamily}`)
+        ]).catch(() => {})
+      : Promise.resolve();
+    loadFonts.finally(() => scheduleFitTerminals(true));
+  }
+
+  function showFontPreviewInChat(fontName) {
+    const t = THEMES[settings.theme] || THEMES.matrix;
+    chatTerm.writeln('\x1b[1m' + ansiFg(t.highlight) + '[font] ' + fontName + ' — The quick brown fox jumps over 0123456789\x1b[0m');
+    chatTerm.writeln('');
+    chatTerm.scrollToBottom();
   }
 
   function applyBrimley(on) {
     settings.brimley = !!on;
     document.documentElement.classList.toggle('brimley-mode', settings.brimley);
-    const size = settings.brimley ? BRIMLEY_FONT_SIZE : NORMAL_FONT_SIZE;
-    const weight = settings.brimley ? 'bold' : 'normal';
-    chatTerm.options.fontSize = size;
-    systemTerm.options.fontSize = size;
-    chatTerm.options.fontWeight = weight;
-    systemTerm.options.fontWeight = weight;
     saveSettings();
-    scheduleFitTerminals();
+    relayoutBothTerminals();
   }
 
-  function scheduleFitTerminals() {
+  function scheduleFitTerminals(repaint) {
     measureInputBar();
     requestAnimationFrame(() => {
       fitTerminals();
       fitBanner();
+      if (repaint) {
+        refreshTerminalPaint(chatTerm);
+        refreshTerminalPaint(systemTerm);
+      }
       requestAnimationFrame(() => {
         fitTerminals();
+        if (repaint) {
+          refreshTerminalPaint(chatTerm);
+          refreshTerminalPaint(systemTerm);
+        }
       });
     });
   }
@@ -300,9 +361,13 @@
   function toggleBrimley() {
     applyBrimley(!settings.brimley);
     if (settings.brimley) {
-      writelnSystem('VISUAL AIDS MODE on — larger, bolder text. /brimley to toggle off.');
+      writelnSystem('VISUAL AIDS MODE on — chat and system text enlarged. /brimley to toggle off.');
+      const t = THEMES[settings.theme] || THEMES.matrix;
+      chatTerm.writeln('\x1b[1m' + ansiFg(t.highlight) + '[VISUAL AIDS] Chat + system panes enlarged.\x1b[0m');
+      chatTerm.writeln('');
+      chatTerm.scrollToBottom();
     } else {
-      writelnSystem('VISUAL AIDS MODE off.');
+      writelnSystem('VISUAL AIDS MODE off — chat and system text restored.');
     }
   }
 
@@ -340,9 +405,7 @@
   function estimateColsFromHost(term) {
     const width = termHostWidth(term);
     if (width <= 0) return 0;
-    const fontSize = term.options.fontSize || NORMAL_FONT_SIZE;
-    const weight = term.options.fontWeight || 'normal';
-    const charW = fontSize * (weight === 'bold' ? 0.62 : 0.6);
+    const charW = measureCharWidth(term);
     return Math.floor(width / charW);
   }
 
@@ -489,7 +552,9 @@
   function send(obj) {
     if (ws && ws.readyState === WebSocket.OPEN) {
       ws.send(JSON.stringify(obj));
+      return true;
     }
+    return false;
   }
 
   async function handleMessage(msg) {
@@ -497,10 +562,16 @@
       case 'chat':
         await renderChatLine(msg);
         break;
+      case 'room_users':
+        if (msg.room && msg.nicks) {
+          roomMemberNicks.set(msg.room, new Set(msg.nicks));
+        }
+        break;
       case 'history':
         await renderHistory(msg);
         break;
       case 'system':
+        trackRoomMembersFromSystem(msg.text, msg.room);
         writelnSystem(msg.text);
         break;
       case 'error':
@@ -537,9 +608,11 @@
         }
         break;
       case 'trivia_question':
+        maybePlayNotifyBlip(msg.room);
         writeTriviaEntry('[Trivia] ' + msg.question);
         break;
       case 'trivia_answer':
+        maybePlayNotifyBlip(msg.room);
         if (msg.winner) {
           writeTriviaEntry('[Trivia] ' + formatNickColored(msg.winner, false) + ' got it! Answer: ' + msg.answer);
         } else {
@@ -547,6 +620,7 @@
         }
         break;
       case 'trivia_scores':
+        maybePlayNotifyBlip(msg.room);
         writeTriviaEntry('[Trivia] Scores: ' + formatScores(msg.scores));
         break;
       default:
@@ -573,15 +647,22 @@
 
   async function renderHistory(msg) {
     if (!msg.history || !msg.history.length) return;
+    const room = msg.room || currentRoom;
+    const members = roomMemberNicks.get(room) || new Set();
     for (const entry of msg.history) {
+      if (entry.nick && entry.nick !== 'ascii' && entry.nick !== 'trivia' && entry.nick !== 'roll' && entry.nick !== 'emote' && entry.nick !== 'server') {
+        members.add(entry.nick);
+      }
       await renderChatLine({
         nick: entry.nick,
         text: entry.text,
         timestamp: entry.timestamp,
-        room: msg.room,
-        enc: entry.enc
+        room: room,
+        enc: entry.enc,
+        history: true
       });
     }
+    roomMemberNicks.set(room, members);
     chatTerm.scrollToBottom();
     requestAnimationFrame(() => {
       fitTerminals();
@@ -592,7 +673,28 @@
   async function renderChatLine(msg) {
     let text = msg.text;
     const room = msg.room || currentRoom;
+    if (isAsciiNick(msg.nick)) {
+      renderAsciiFromId(String(text || '').trim().toLowerCase(), formatTimestamp(msg.timestamp));
+      return;
+    }
+    if (isRollNick(msg.nick)) {
+      writeRollEntry(text, formatTimestamp(msg.timestamp));
+      return;
+    }
+    if (isEmoteNick(msg.nick)) {
+      if (isMentionedByOther(msg, text)) {
+        maybePlayNotifyBlip(room);
+      }
+      writeEmoteEntry(text, formatTimestamp(msg.timestamp));
+      return;
+    }
     if (isTriviaNick(msg.nick)) {
+      if (!msg.history) maybePlayNotifyBlip(room);
+      writeTriviaEntry(text, formatTimestamp(msg.timestamp));
+      return;
+    }
+    if (isServerNick(msg.nick)) {
+      if (!msg.history) maybePlayNotifyBlip(room);
       writeTriviaEntry(text, formatTimestamp(msg.timestamp));
       return;
     }
@@ -606,8 +708,16 @@
         return;
       }
     }
+    if (msg.nick) {
+      const members = roomMemberNicks.get(room) || new Set();
+      members.add(msg.nick);
+      roomMemberNicks.set(room, members);
+    }
+    if (isMentionedByOther(msg, text)) {
+      maybePlayNotifyBlip(room);
+    }
     const ts = formatTimestamp(msg.timestamp);
-    writeChatEntry(msg.nick, ts, text, msg.room);
+    writeChatEntry(msg.nick, ts, text, room);
   }
 
   function writeChatEntry(nick, timestamp, text, room) {
@@ -620,17 +730,209 @@
     const tsPrefix = timestamp ? '[' + timestamp + '] ' : '';
     const cols = termCols(chatTerm);
     const prefixLen = stripAnsi(tsPrefix).length;
-    const parts = wrapPlainWordsWithPrefix(text, cols, prefixLen);
     const indent = ' '.repeat(prefixLen);
-    parts.forEach((part, i) => {
-      chatTerm.writeln(i === 0 ? tsPrefix + part : indent + part);
+    const width = Math.max(cols - prefixLen, 8);
+    const paragraphs = normalizeDisplayText(text).split('\n');
+    let wroteContent = false;
+
+    paragraphs.forEach((para) => {
+      if (para === '') {
+        chatTerm.writeln(wroteContent ? indent : tsPrefix);
+        wroteContent = true;
+        return;
+      }
+      const parts = wrapPlainWords(para, width);
+      const members = roomMemberNicks.get(room || currentRoom) || new Set();
+      parts.forEach((part) => {
+        const styledPart = colorMentionsInLine(part, members);
+        if (!wroteContent) {
+          chatTerm.writeln(tsPrefix + styledPart);
+          wroteContent = true;
+        } else {
+          chatTerm.writeln(indent + styledPart);
+        }
+      });
     });
+
     chatTerm.writeln('');
     chatTerm.scrollToBottom();
   }
 
   function isTriviaNick(nick) {
     return nick === 'trivia' || nick === '*trivia*';
+  }
+
+  function isServerNick(nick) {
+    return nick === 'server';
+  }
+
+  function isAsciiNick(nick) {
+    return nick === 'ascii';
+  }
+
+  function isRollNick(nick) {
+    return nick === 'roll';
+  }
+
+  function isEmoteNick(nick) {
+    return nick === 'emote';
+  }
+
+  function nickMatches(mention, memberNick) {
+    if (!mention || !memberNick) return false;
+    const m = mention.toLowerCase();
+    const n = memberNick.toLowerCase();
+    if (m === n) return true;
+    const bang = n.indexOf('!');
+    if (bang > 0 && n.slice(0, bang) === m) return true;
+    return false;
+  }
+
+  function isMentioned(mentions, memberNick) {
+    if (!mentions || !memberNick) return false;
+    return mentions.some((m) => nickMatches(m, memberNick));
+  }
+
+  function shouldBlipForRoom(room) {
+    if (!room) return true;
+    return room === currentRoom || joinedRooms.has(room);
+  }
+
+  function isMentionedByOther(msg, text) {
+    if (!fullNick || msg.history) return false;
+    if (msg.nick && !isEmoteNick(msg.nick) && !isTriviaNick(msg.nick) && !isServerNick(msg.nick) &&
+        !isAsciiNick(msg.nick) && !isRollNick(msg.nick) && nickMatches(msg.nick, fullNick)) {
+      return false;
+    }
+    if (msg.mentions && isMentioned(msg.mentions, fullNick)) return true;
+    if (!text) return false;
+    const plain = stripAnsi(String(text));
+    let match;
+    const re = /@(\S+)/g;
+    while ((match = re.exec(plain)) !== null) {
+      const token = match[1].replace(/[.,!?;:]+$/, '');
+      if (nickMatches(token, fullNick)) return true;
+    }
+    return false;
+  }
+
+  function maybePlayNotifyBlip(room) {
+    if (!shouldBlipForRoom(room)) return;
+    playNotifyBlip();
+  }
+
+  function memberSetHas(members, token) {
+    if (!members || !token) return false;
+    for (const nick of members) {
+      if (nickMatches(token, nick)) return true;
+    }
+    return false;
+  }
+
+  function colorMentionsInLine(line, members) {
+    const t = THEMES[settings.theme] || THEMES.matrix;
+    const reset = '\x1b[0m';
+    const mc = ansiFg(t.mention || t.highlight);
+    return line.replace(/@(\S+)/g, (full, token) => {
+      const bare = token.replace(/[.,!?;:]+$/, '');
+      const suffix = token.slice(bare.length);
+      if (memberSetHas(members, bare)) {
+        return mc + '@' + bare + reset + suffix;
+      }
+      return full;
+    });
+  }
+
+  function trackRoomMembersFromSystem(text, room) {
+    if (!text || !room) return;
+    const join = text.match(/^(\S+) has joined\.?$/);
+    const left = text.match(/^(\S+) has left\.?$/);
+    const members = roomMemberNicks.get(room) || new Set();
+    if (join) {
+      members.add(join[1]);
+      roomMemberNicks.set(room, members);
+    } else if (left) {
+      for (const nick of members) {
+        if (nickMatches(left[1], nick)) {
+          members.delete(nick);
+          break;
+        }
+      }
+      roomMemberNicks.set(room, members);
+    }
+  }
+
+  let audioCtx = null;
+
+  function getAudioContext() {
+    if (!audioCtx) {
+      try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      } catch (_) {}
+    }
+    return audioCtx;
+  }
+
+  function playBlip(freq, duration, volume) {
+    if (!settings.sound) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    try {
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(volume, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch (_) {}
+  }
+
+  function playNotifyBlip() {
+    playBlip(880, 0.07, 0.07);
+  }
+
+  function writeRollEntry(text, timestamp) {
+    writeStyledChatLine(text, timestamp, triviaColor());
+  }
+
+  function writeEmoteEntry(text, timestamp) {
+    writeStyledChatLine(text, timestamp, triviaColor());
+  }
+
+  function writeStyledChatLine(text, timestamp, color) {
+    const reset = '\x1b[0m';
+    const bold = '\x1b[1m';
+    const tsPrefix = timestamp ? '[' + timestamp + '] ' : '';
+    const cols = termCols(chatTerm);
+    const prefixLen = stripAnsi(tsPrefix).length;
+    const indent = ' '.repeat(prefixLen);
+    const width = Math.max(cols - prefixLen, 8);
+    const plain = stripAnsi(text);
+    const styledPrefix = bold + color;
+    const paragraphs = normalizeDisplayText(plain).split('\n');
+    let wroteContent = false;
+
+    paragraphs.forEach((para) => {
+      if (para === '') {
+        chatTerm.writeln(styledPrefix + (wroteContent ? indent : tsPrefix) + reset);
+        wroteContent = true;
+        return;
+      }
+      const parts = wrapPlainWords(para, width);
+      parts.forEach((part) => {
+        const line = !wroteContent ? tsPrefix + part : indent + part;
+        chatTerm.writeln(styledPrefix + line + reset);
+        wroteContent = true;
+      });
+    });
+
+    chatTerm.writeln('');
+    chatTerm.scrollToBottom();
   }
 
   function triviaColor() {
@@ -645,20 +947,58 @@
     const tsPrefix = timestamp ? '[' + timestamp + '] ' : '';
     const cols = termCols(chatTerm);
     const prefixLen = stripAnsi(tsPrefix).length;
-    const plain = stripAnsi(text);
-    const parts = wrapPlainWordsWithPrefix(plain, cols, prefixLen);
     const indent = ' '.repeat(prefixLen);
+    const width = Math.max(cols - prefixLen, 8);
+    const plain = stripAnsi(text);
     const styledPrefix = bold + color;
-    parts.forEach((part, i) => {
-      const line = i === 0 ? tsPrefix + part : indent + part;
-      chatTerm.writeln(styledPrefix + line + reset);
+    const paragraphs = normalizeDisplayText(plain).split('\n');
+    let wroteContent = false;
+
+    paragraphs.forEach((para) => {
+      if (para === '') {
+        chatTerm.writeln(styledPrefix + (wroteContent ? indent : tsPrefix) + reset);
+        wroteContent = true;
+        return;
+      }
+      const parts = wrapPlainWords(para, width);
+      parts.forEach((part) => {
+        const line = !wroteContent ? tsPrefix + part : indent + part;
+        chatTerm.writeln(styledPrefix + line + reset);
+        wroteContent = true;
+      });
     });
+
     chatTerm.writeln('');
     chatTerm.scrollToBottom();
   }
 
   function stripAnsi(text) {
     return text.replace(/\x1b\[[0-9;]*m/g, '');
+  }
+
+  function normalizeDisplayText(text) {
+    return String(text)
+      .replace(/\t/g, '    ')
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n');
+  }
+
+  function measureCharWidth(term) {
+    try {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('no canvas');
+      const size = term.options.fontSize || NORMAL_FONT_SIZE;
+      const weight = term.options.fontWeight || 'normal';
+      const family = term.options.fontFamily || 'monospace';
+      ctx.font = `${weight} ${size}px ${family}`;
+      const w = ctx.measureText('M').width;
+      return w > 0 ? w : size * 0.6;
+    } catch (_) {
+      const size = term.options.fontSize || NORMAL_FONT_SIZE;
+      const weight = term.options.fontWeight || 'normal';
+      return size * (weight === 'bold' ? 0.62 : 0.6);
+    }
   }
 
   function extractAnsiPrefix(text) {
@@ -771,7 +1111,9 @@
   }
 
   function writeWrapped(term, text, cols) {
-    wrapTerminalText(text, cols).forEach(line => term.writeln(line));
+    normalizeDisplayText(text).split('\n').forEach(row => {
+      wrapPlainWords(row, effectiveCols(cols)).forEach(line => term.writeln(line));
+    });
   }
 
   function ansiFg(hex) {
@@ -821,6 +1163,138 @@
     const content = isError ? '\x1b[31m' + text + '\x1b[0m' : text;
     writeWrapped(systemTerm, content, termCols(systemTerm));
     systemTerm.scrollToBottom();
+  }
+
+  function asciiArtLibrary() {
+    return window.DOOM_ASCII_ART || [];
+  }
+
+  function getAsciiMaxDisplayRows() {
+    fitTerminals();
+    const host = document.getElementById('chat-terminal');
+    const fontSize = chatTerm.options.fontSize || NORMAL_FONT_SIZE;
+    const linePx = fontSize * 1.2;
+    if (host && host.clientHeight > 0) {
+      return Math.max(3, Math.floor((host.clientHeight * 0.5) / linePx));
+    }
+    return Math.max(3, Math.floor(chatTerm.rows * 0.5));
+  }
+
+  function subsampleAsciiLines(lines, target) {
+    if (lines.length <= target) return lines;
+    if (target <= 0) return [];
+    if (target === 1) return [lines[0]];
+    const out = [];
+    for (let i = 0; i < target; i++) {
+      const idx = Math.round(i * (lines.length - 1) / (target - 1));
+      out.push(lines[idx]);
+    }
+    return out;
+  }
+
+  function scaleAsciiArtLines(artText) {
+    const raw = normalizeDisplayText(artText).split('\n');
+    while (raw.length && raw[raw.length - 1] === '') raw.pop();
+    const maxTotalRows = getAsciiMaxDisplayRows();
+    const maxArtRows = Math.max(1, maxTotalRows - 1);
+    const maxCols = Math.max(8, chatTerm.cols - 1);
+    let lines = raw.length ? raw : [''];
+    let scaled = false;
+    if (lines.length > maxArtRows) {
+      lines = subsampleAsciiLines(lines, maxArtRows);
+      scaled = true;
+    }
+    lines = lines.map((line) => {
+      if (line.length > maxCols) {
+        scaled = true;
+        return line.slice(0, maxCols);
+      }
+      return line;
+    });
+    return { lines, scaled };
+  }
+
+  function findAsciiPiece(id) {
+    return asciiArtLibrary().find((a) => a.id === id);
+  }
+
+  function pickRandomAsciiId() {
+    const list = asciiArtLibrary();
+    if (!list.length) return null;
+    const piece = list[Math.floor(Math.random() * list.length)];
+    return piece && piece.id ? piece.id : null;
+  }
+
+  function writeAsciiArt(piece, timestamp) {
+    const { lines, scaled } = scaleAsciiArtLines(piece.art);
+    const t = THEMES[settings.theme] || THEMES.matrix;
+    const color = ansiFg(t.trivia || t.highlight);
+    const reset = '\x1b[0m';
+    const bold = '\x1b[1m';
+    const titleSuffix = scaled ? ' (scaled to fit)' : '';
+    const tsPrefix = timestamp ? '[' + timestamp + '] ' : '';
+    chatTerm.writeln(tsPrefix + bold + color + '=== ' + piece.title + titleSuffix + ' ===' + reset);
+    lines.forEach((line) => {
+      chatTerm.writeln(color + line + reset);
+    });
+    chatTerm.writeln('');
+    chatTerm.scrollToBottom();
+  }
+
+  function renderAsciiFromId(id, timestamp) {
+    if (!id) return;
+    let artId = String(id).trim().toLowerCase();
+    if (artId === 'random') {
+      artId = pickRandomAsciiId();
+      if (!artId) {
+        writeTriviaEntry('[ascii] art library not loaded', timestamp);
+        return;
+      }
+    }
+    const piece = findAsciiPiece(artId);
+    if (!piece) {
+      writeTriviaEntry('[ascii] missing art: ' + artId, timestamp);
+      return;
+    }
+    writeAsciiArt(piece, timestamp);
+  }
+
+  function requestAsciiArt(arg) {
+    const list = asciiArtLibrary();
+    if (!list.length) {
+      writelnSystem('ASCII art library not loaded.', true);
+      return;
+    }
+    const pick = (arg || 'random').trim().toLowerCase();
+    if (pick === 'list') {
+      writelnSystem('ASCII art: /ascii  |  /ascii random  |  /ascii <id>');
+      writelnSystem('IDs: ' + list.map((a) => a.id).join(', '));
+      return;
+    }
+    if (!fullNick) {
+      writelnSystem('Set a nick first: /nick YourName#secret', true);
+      return;
+    }
+    if (isEncryptedRoom(currentRoom)) {
+      writelnSystem('ASCII art only in public rooms.', true);
+      return;
+    }
+    let id;
+    if (pick === 'random' || pick === '') {
+      id = pickRandomAsciiId();
+      if (!id) {
+        writelnSystem('ASCII art library not loaded.', true);
+        return;
+      }
+    } else if (findAsciiPiece(pick)) {
+      id = pick;
+    } else {
+      writelnSystem('Unknown ASCII art "' + pick + '". Try /ascii list', true);
+      return;
+    }
+    if (!send({ type: 'ascii', room: currentRoom, text: id })) {
+      writelnSystem('Not connected — /ascii not sent.', true);
+    }
   }
 
   function formatScores(scores) {
@@ -878,47 +1352,160 @@
     send({ type: 'chat', room: currentRoom, text, enc });
   }
 
+  const COMMAND_INDEX = [
+    'ascii', 'board', 'boards', 'brimley', 'create', 'emote', 'font', 'help',
+    'join', 'list', 'logout', 'nick', 'part', 'post', 'posts', 'roll', 'room',
+    'rooms', 'sound', 'theme', 'thread', 'threads', 'trivia', 'users'
+  ];
+
+  function commandHelpText(name) {
+    const fonts = Object.keys(FONTS).join(', ');
+    const themes = Object.keys(THEMES).join(', ');
+    const emotes = 'slap, hug, wave, punch, highfive, dance, flip, toast';
+    const map = {
+      ascii: [
+        '/ascii — retro ASCII art in chat (persists 24h, auto-scaled)',
+        'Usage: /ascii  |  /ascii random  |  /ascii <id>  |  /ascii list',
+        'Tip: bare /ascii picks random from 100 tech & game pieces'
+      ],
+      board: [
+        '/board — message board management',
+        'Usage: /board create <name>'
+      ],
+      boards: [
+        '/boards — list all message boards'
+      ],
+      brimley: [
+        '/brimley — toggle VISUAL AIDS MODE (enlarged chat + system text)'
+      ],
+      create: [
+        '/create — create a private encrypted room',
+        'Usage: /create private <name> <password>'
+      ],
+      emote: [
+        '/emote — perform an action toward another user in the room',
+        'Usage: /emote <name> <nick>',
+        'Emotes: ' + emotes
+      ],
+      font: [
+        '/font — change chat and system pane font',
+        'Usage: /font <name>',
+        'Fonts: ' + fonts
+      ],
+      help: [
+        '/help — list commands (A–Z)',
+        'Usage: /help  |  /help <command>'
+      ],
+      join: [
+        '/join — join a chat room',
+        'Usage: /join #room  |  /join <room> <password>  (encrypted rooms)'
+      ],
+      list: [
+        '/list — list public rooms with user counts'
+      ],
+      logout: [
+        '/logout — clear session (refresh to start new)'
+      ],
+      nick: [
+        '/nick — set your display nick with optional tripcode',
+        'Usage: /nick YourName#secret'
+      ],
+      part: [
+        '/part — leave a room (default: current room; cannot part #lobby)',
+        'Usage: /part  |  /part #room'
+      ],
+      post: [
+        '/post — reply to a message-board thread',
+        'Usage: /post <thread_id> <body>'
+      ],
+      posts: [
+        '/posts — list posts in a thread',
+        'Usage: /posts <thread_id>'
+      ],
+      roll: [
+        '/roll — roll D&D dice in chat (persists 24h, public rooms)',
+        'Dice: d20, d12, d10, d%, d8, d6, d4, d2',
+        'Usage: /roll d20  |  /roll 2d6+3  |  /roll d%-10'
+      ],
+      room: [
+        '/room — switch active room (client-side focus)',
+        'Usage: /room #name'
+      ],
+      rooms: [
+        '/rooms — numbered public room list',
+        'Usage: /rooms  |  /rooms <number>  (switch by list index)'
+      ],
+      sound: [
+        '/sound — matrix blips for @mentions, trivia, and server chat (on by default)',
+        'Usage: /sound on  |  /sound off',
+        'Current: ' + (settings.sound ? 'on' : 'off')
+      ],
+      theme: [
+        '/theme — change color theme',
+        'Usage: /theme <name>',
+        'Themes: ' + themes
+      ],
+      thread: [
+        '/thread — create a message-board thread',
+        'Usage: /thread create <board> <title>'
+      ],
+      threads: [
+        '/threads — list threads on a board',
+        'Usage: /threads <board>'
+      ],
+      trivia: [
+        '/trivia — trivia game in public rooms (persists 24h)',
+        'Usage: /trivia  |  /trivia start  |  /trivia stop'
+      ],
+      users: [
+        '/users — list users in a room',
+        'Usage: /users  |  /users #room'
+      ]
+    };
+    return map[name] || null;
+  }
+
+  function showCommandIndex() {
+    writelnSystem('Commands (A–Z):\n' + COMMAND_INDEX.map((c) => '/' + c).join('\n'));
+    writelnSystem('Type /help <command> or /command for usage details.');
+  }
+
+  function showCommandHelp(name) {
+    const lines = commandHelpText(name);
+    if (!lines) {
+      writelnSystem('Unknown command "' + name + '". /help for list.', true);
+      return;
+    }
+    writelnSystem(lines.join('\n'));
+  }
+
   async function handleCommand(line) {
     const parts = line.slice(1).trim().split(/\s+/);
     const cmd = (parts[0] || '').toLowerCase();
 
     switch (cmd) {
-      case 'help':
-        writelnSystem([
-          'Commands:',
-          '/nick Name#secret  — set tripcoded nick',
-          '/join #room         — join public room',
-          '/join room pass     — join encrypted room',
-          '/part [#room]       — leave room',
-          '/create private name pass — create E2EE room',
-          '/theme <name>       — matrix|amber|cobalt|snow|vintage|dracula|spawn|merica',
-          '/font <name>        — Courier New|IBM Plex Mono|Fira Code|JetBrains Mono|Lucida Console',
-          '/trivia             — ask one random question (30s)',
-          '/trivia start|stop  — continuous trivia game',
-          '/rooms              — list public rooms (numbered)',
-          '/rooms <#>          — switch to room by list number',
-          '/list               — public rooms and user counts',
-          '/users [#room]      — users currently in a room',
-          '/brimley            — toggle VISUAL AIDS MODE (large bold text)',
-          '/boards             — list message boards',
-          '/board create Name  — create board',
-          '/threads Board      — list threads',
-          '/thread create Board Title',
-          '/posts <id>         — list posts',
-          '/post <id> body     — reply to thread',
-          '/logout             — clear session',
-          '/room <name>        — switch active room'
-        ].join('\n'));
+      case 'help': {
+        const topic = (parts[1] || '').toLowerCase();
+        if (topic) {
+          showCommandHelp(topic);
+        } else {
+          showCommandIndex();
+        }
         break;
+      }
 
       case 'nick': {
         const arg = line.slice(5).trim();
+        if (!arg) {
+          showCommandHelp('nick');
+          return;
+        }
         const trip = await parseTripcode(arg);
         if (!trip) {
           if (arg.includes('!')) {
             writelnSystem('Cannot paste a tripcode. Use /nick YourName#secret', true);
           } else {
-            writelnSystem('Usage: /nick YourName#secret', true);
+            showCommandHelp('nick');
           }
           return;
         }
@@ -932,12 +1519,12 @@
 
       case 'join': {
         const rest = line.slice(5).trim();
-        const joinParts = rest.split(/\s+/);
-        let room = joinParts[0];
-        if (!room) {
-          writelnSystem('Usage: /join #room OR /join roomname password', true);
+        if (!rest) {
+          showCommandHelp('join');
           return;
         }
+        const joinParts = rest.split(/\s+/);
+        let room = joinParts[0];
         if (!room.startsWith('#')) room = '#' + room;
         room = room.toLowerCase();
         if (joinParts.length >= 2) {
@@ -961,8 +1548,12 @@
       }
 
       case 'create': {
+        if (parts.length === 1) {
+          showCommandHelp('create');
+          return;
+        }
         if (parts[1] !== 'private' || parts.length < 4) {
-          writelnSystem('Usage: /create private <name> <password>', true);
+          showCommandHelp('create');
           return;
         }
         const name = parts[2];
@@ -977,8 +1568,12 @@
 
       case 'theme': {
         const name = parts[1];
-        if (!name || !THEMES[name]) {
-          writelnSystem('Themes: ' + Object.keys(THEMES).join(', '), true);
+        if (!name) {
+          showCommandHelp('theme');
+          return;
+        }
+        if (!THEMES[name]) {
+          showCommandHelp('theme');
           return;
         }
         applyTheme(name);
@@ -989,27 +1584,107 @@
 
       case 'font': {
         const name = line.match(/\/font\s+"([^"]+)"/)?.[1] || parts.slice(1).join(' ');
-        if (!name || !FONTS[name]) {
-          writelnSystem('Fonts: ' + Object.keys(FONTS).join(', '), true);
+        if (!name) {
+          showCommandHelp('font');
+          return;
+        }
+        if (!FONTS[name]) {
+          showCommandHelp('font');
           return;
         }
         applyFont(name);
-        fitTerminals();
         send({ type: 'font', font: name });
-        writelnSystem('Font set to ' + name);
+        writelnSystem('Font set to ' + name + ' (chat + system panes).');
+        showFontPreviewInChat(name);
+        break;
+      }
+
+      case 'ascii': {
+        const arg = parts.length > 1 ? parts.slice(1).join(' ').trim().toLowerCase() : 'random';
+        if (arg === 'help') {
+          showCommandHelp('ascii');
+          return;
+        }
+        requestAsciiArt(arg);
+        break;
+      }
+
+      case 'roll': {
+        const expr = parts.slice(1).join(' ').trim();
+        if (!expr) {
+          showCommandHelp('roll');
+          return;
+        }
+        if (!fullNick) {
+          writelnSystem('Set a nick first: /nick YourName#secret', true);
+          return;
+        }
+        if (isEncryptedRoom(currentRoom)) {
+          writelnSystem('Rolls only in public rooms.', true);
+          return;
+        }
+        if (!send({ type: 'roll', room: currentRoom, text: expr })) {
+          writelnSystem('Not connected — /roll not sent.', true);
+        }
+        break;
+      }
+
+      case 'emote': {
+        if (parts.length === 1) {
+          showCommandHelp('emote');
+          return;
+        }
+        const emote = parts[1].toLowerCase();
+        const target = parts.slice(2).join(' ').trim();
+        if (!target) {
+          showCommandHelp('emote');
+          return;
+        }
+        if (!fullNick) {
+          writelnSystem('Set a nick first: /nick YourName#secret', true);
+          return;
+        }
+        if (isEncryptedRoom(currentRoom)) {
+          writelnSystem('Emotes only in public rooms.', true);
+          return;
+        }
+        if (!send({ type: 'emote', room: currentRoom, text: emote, name: target })) {
+          writelnSystem('Not connected — /emote not sent.', true);
+        }
+        break;
+      }
+
+      case 'sound': {
+        const action = (parts[1] || '').toLowerCase();
+        if (!action) {
+          showCommandHelp('sound');
+          return;
+        }
+        if (action === 'on') {
+          settings.sound = true;
+          saveSettings();
+          writelnSystem('Sound on — blips on @mentions, trivia, and server chat.');
+          playNotifyBlip();
+        } else if (action === 'off') {
+          settings.sound = false;
+          saveSettings();
+          writelnSystem('Sound off.');
+        } else {
+          showCommandHelp('sound');
+        }
         break;
       }
 
       case 'trivia': {
         const action = (parts[1] || '').toLowerCase();
-        if (!action) {
-          send({ type: 'trivia_once', room: currentRoom });
-        } else if (action === 'start') {
+        if (action === 'start') {
           send({ type: 'trivia_start', room: currentRoom });
         } else if (action === 'stop') {
           send({ type: 'trivia_stop', room: currentRoom });
+        } else if (action === '' || action === 'once') {
+          send({ type: 'trivia_once', room: currentRoom });
         } else {
-          writelnSystem('Usage: /trivia | /trivia start | /trivia stop', true);
+          showCommandHelp('trivia');
         }
         break;
       }
@@ -1026,7 +1701,7 @@
         }
         const n = parseInt(arg, 10);
         if (!n || n < 1) {
-          writelnSystem('Usage: /rooms  OR  /rooms <number>', true);
+          showCommandHelp('rooms');
           break;
         }
         if (!numberedPublicRooms.length) {
@@ -1064,33 +1739,33 @@
         if (parts[1] === 'create' && parts[2]) {
           send({ type: 'board_create', name: parts.slice(2).join(' ') });
         } else {
-          writelnSystem('Usage: /board create <name>', true);
+          showCommandHelp('board');
         }
         break;
 
       case 'threads':
         if (parts[1]) send({ type: 'thread_list', board: parts.slice(1).join(' ') });
-        else writelnSystem('Usage: /threads <board>', true);
+        else showCommandHelp('threads');
         break;
 
       case 'thread':
         if (parts[1] === 'create' && parts.length >= 4) {
           send({ type: 'thread_create', board: parts[2], title: parts.slice(3).join(' ') });
         } else {
-          writelnSystem('Usage: /thread create <board> <title>', true);
+          showCommandHelp('thread');
         }
         break;
 
       case 'posts':
         if (parts[1]) send({ type: 'post_list', thread: parts[1] });
-        else writelnSystem('Usage: /posts <thread_id>', true);
+        else showCommandHelp('posts');
         break;
 
       case 'post':
-        if (parts[1]) {
+        if (parts[1] && parts.length > 2) {
           send({ type: 'post_create', thread: parts[1], body: parts.slice(2).join(' ') });
         } else {
-          writelnSystem('Usage: /post <thread_id> <body>', true);
+          showCommandHelp('post');
         }
         break;
 
@@ -1107,6 +1782,8 @@
           const room = parts[1].startsWith('#') ? parts[1].toLowerCase() : ('#' + parts[1]).toLowerCase();
           setActiveRoom(room);
           writelnSystem('Active room: ' + currentRoom);
+        } else {
+          showCommandHelp('room');
         }
         break;
 

@@ -397,6 +397,14 @@ html.brimley-mode .chat-banner {
   font-weight: 700;
 }
 
+html.brimley-mode:not(.is-mobile) .chat-banner {
+  font-size: clamp(0.62rem, 1.35vw, 0.95rem);
+}
+
+html.brimley-mode .pane-label {
+  font-size: 0.8rem;
+}
+
 /* Desktop brimley: keep 2:1 panes locked; xterm font metrics set in JS (not CSS bold). */
 html.brimley-mode:not(.is-mobile) .terminal-grid {
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
