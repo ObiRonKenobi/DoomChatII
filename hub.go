@@ -110,6 +110,7 @@ func (h *Hub) removeClient(c *Client) {
 			if nick != "" {
 				h.broadcastRoomSystem(roomName, nick+" has left.")
 			}
+			h.broadcastRoomUsers(roomName)
 		}
 	}
 
@@ -165,6 +166,20 @@ func formatTriviaScores(scores map[string]int) string {
 
 func (h *Hub) broadcastRoomSystem(room, text string) {
 	h.broadcastRoom(room, ServerMessage{Type: "system", Target: TargetSystem, Room: room, Text: text})
+}
+
+func (h *Hub) broadcastRoomUsers(roomName string) {
+	room, ok := h.rooms.Get(roomName)
+	if !ok {
+		return
+	}
+	h.broadcastRoom(roomName, ServerMessage{
+		Type:   "room_users",
+		Target: TargetSystem,
+		Room:   roomName,
+		Nicks:  room.MemberNickList(),
+		Number: room.MemberCount(),
+	})
 }
 
 func (c *Client) Send(msg ServerMessage) {
@@ -241,10 +256,12 @@ func (c *Client) joinRoom(h *Hub, roomName string) error {
 		Target: TargetSystem,
 		Room:   roomName,
 		Nicks:  room.MemberNickList(),
+		Number: room.MemberCount(),
 	})
 	if nick != "" {
 		h.broadcastRoomSystem(roomName, nick+" has joined.")
 	}
+	h.broadcastRoomUsers(roomName)
 	if h.trivia != nil {
 		h.trivia.ResyncClient(roomName, c, h)
 	}
@@ -270,6 +287,7 @@ func (c *Client) partRoom(h *Hub, roomName string) {
 		if nick != "" {
 			h.broadcastRoomSystem(roomName, nick+" has left.")
 		}
+		h.broadcastRoomUsers(roomName)
 	}
 	c.sendSystem("Left " + roomName)
 	if c.sessionID != "" {

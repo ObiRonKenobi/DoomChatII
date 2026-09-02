@@ -122,6 +122,7 @@
   const joinedRooms = new Set(['#lobby']);
   const roomKeys = new Map();
   const roomMemberNicks = new Map();
+  const roomLiveCounts = new Map();
   let pendingPrivateJoin = '';
   let lastJoinAttempt = '';
   let numberedPublicRooms = [];
@@ -130,6 +131,7 @@
 
   const statusEl = document.getElementById('status');
   const roomLabelEl = document.getElementById('room-label');
+  const tripcodeBannerEl = document.getElementById('tripcode-banner');
   const inputBarEl = document.querySelector('.input-bar');
   const cmdFormEl = document.getElementById('cmd-form');
   const inputEl = document.getElementById('cmd-input');
@@ -381,8 +383,50 @@
     }
   }
 
+  function extractTripcode(nick) {
+    if (!nick) return null;
+    const bang = nick.indexOf('!');
+    if (bang < 0) return null;
+    return nick.slice(bang);
+  }
+
+  function updateTripcodeBanner() {
+    if (!tripcodeBannerEl) return;
+    const tc = extractTripcode(fullNick);
+    tripcodeBannerEl.textContent = tc
+      ? 'Tripcode of the Gods: ' + tc
+      : 'Tripcode of the Gods: —';
+  }
+
+  function currentRoomMemberCount() {
+    if (roomLiveCounts.has(currentRoom)) {
+      return roomLiveCounts.get(currentRoom);
+    }
+    const members = roomMemberNicks.get(currentRoom);
+    if (members && members.size > 0) {
+      return members.size;
+    }
+    const listed = numberedPublicRooms.find((r) => r.name === currentRoom);
+    if (listed && listed.count != null) {
+      return listed.count;
+    }
+    return 0;
+  }
+
   function updateRoomLabel() {
-    if (roomLabelEl) roomLabelEl.textContent = currentRoom;
+    if (!roomLabelEl) return;
+    const count = currentRoomMemberCount();
+    roomLabelEl.textContent = currentRoom + ' (' + count + ')';
+  }
+
+  function refreshRoomPresence(room, nicks, count) {
+    if (room && Array.isArray(nicks)) {
+      roomMemberNicks.set(room, new Set(nicks));
+      roomLiveCounts.set(room, count != null ? count : nicks.length);
+    }
+    if (room === currentRoom) {
+      updateRoomLabel();
+    }
   }
 
   function setActiveRoom(room) {
@@ -391,6 +435,7 @@
   }
 
   updateRoomLabel();
+  updateTripcodeBanner();
 
   function fitTerminals() {
     try {
@@ -566,7 +611,7 @@
         break;
       case 'room_users':
         if (msg.room && msg.nicks) {
-          roomMemberNicks.set(msg.room, new Set(msg.nicks));
+          refreshRoomPresence(msg.room, msg.nicks, msg.number);
         }
         break;
       case 'history':
@@ -593,6 +638,7 @@
           saveSettings();
         }
         if (msg.nick) fullNick = msg.nick;
+        updateTripcodeBanner();
         if (msg.rooms && msg.rooms.length) {
           joinedRooms.clear();
           msg.rooms.forEach((r) => joinedRooms.add(r));
@@ -613,6 +659,8 @@
         break;
       case 'room_list':
         numberedPublicRooms = msg.room_list || [];
+        numberedPublicRooms.forEach((r) => roomLiveCounts.set(r.name, r.count));
+        updateRoomLabel();
         if (numberedPublicRooms.length === 0) {
           writelnSystem('No public rooms.');
         } else {
@@ -680,6 +728,10 @@
       });
     }
     roomMemberNicks.set(room, members);
+    if (room === currentRoom) {
+      roomLiveCounts.set(room, roomLiveCounts.get(room) || members.size);
+      updateRoomLabel();
+    }
     chatTerm.scrollToBottom();
     requestAnimationFrame(() => {
       fitTerminals();
@@ -729,6 +781,10 @@
       const members = roomMemberNicks.get(room) || new Set();
       members.add(msg.nick);
       roomMemberNicks.set(room, members);
+      if (room === currentRoom) {
+        roomLiveCounts.set(room, members.size);
+        updateRoomLabel();
+      }
     }
     if (isMentionedByOther(msg, text)) {
       maybePlayNotifyBlip(room);
@@ -878,6 +934,12 @@
         }
       }
       roomMemberNicks.set(room, members);
+    }
+    if (join || left) {
+      roomLiveCounts.set(room, members.size);
+      if (room === currentRoom) {
+        updateRoomLabel();
+      }
     }
   }
 
@@ -1544,6 +1606,7 @@
         fullNick = trip.display;
         settings.last_nick = trip.name;
         saveSettings();
+        updateTripcodeBanner();
         send({ type: 'nick', nick: fullNick });
         writelnSystem('Nick set locally to ' + formatNickColored(fullNick, false));
         break;
