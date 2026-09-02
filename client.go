@@ -63,6 +63,14 @@ func (c *Client) writePump() {
 }
 
 func (c *Client) handleMessage(h *Hub, msg ClientMessage) {
+	if msg.Type != "hello" && !c.helloDone {
+		c.sendError("send hello first")
+		return
+	}
+	if !c.allowMessageRate(msg.Type) {
+		c.sendError("rate limited")
+		return
+	}
 	switch msg.Type {
 	case "hello":
 		c.handleHello(h, msg)
@@ -99,31 +107,64 @@ func (c *Client) handleMessage(h *Hub, msg ClientMessage) {
 	case "logout":
 		c.handleLogout(h)
 	default:
-		c.sendError("unknown message type: " + msg.Type)
+		c.sendError("unknown message type")
 	}
 }
 
-func (c *Client) handleHello(h *Hub, msg ClientMessage) {
-	c.mu.Lock()
-	c.sessionID = strings.TrimSpace(msg.SessionID)
-	c.mu.Unlock()
+func (c *Client) allowMessageRate(msgType string) bool {
+	switch msgType {
+	case "hello", "nick", "join", "part", "logout", "list", "users":
+		return true
+	case "chat":
+		return c.chatBucket.allow()
+	default:
+		return c.cmdBucket.allow()
+	}
+}
 
-	if c.sessionID == "" {
-		c.Send(ServerMessage{Type: "session_new", Target: TargetSystem})
+func (c *Client) finishHello(h *Hub) {
+	c.helloDone = true
+}
+
+func (c *Client) handleHello(h *Hub, msg ClientMessage) {
+	defer c.finishHello(h)
+
+	sid := strings.TrimSpace(msg.SessionID)
+	if sid != "" && !validateSessionID(sid) {
+		sid = ""
+	}
+
+	if sid == "" {
+		sid = newSessionID()
+		c.mu.Lock()
+		c.sessionID = sid
+		c.mu.Unlock()
+		h.sessions.Upsert(sid, "", nil, c)
+		c.Send(ServerMessage{Type: "session_new", Target: TargetSystem, SessionID: sid})
+		if msg.Nick != "" && validateNick(msg.Nick) {
+			c.mu.Lock()
+			c.nick = msg.Nick
+			c.mu.Unlock()
+			h.sessions.UpdateNick(sid, c.nick)
+		}
 		c.sendSystem("Welcome to DoomChat II. Set your nick: /nick YourName#secret")
 		_ = c.joinRoom(h, lobbyRoom)
 		c.sendReleaseNotice(h)
 		return
 	}
 
-	if restored, ok := h.sessions.CanRestore(c.sessionID); ok {
+	c.mu.Lock()
+	c.sessionID = sid
+	c.mu.Unlock()
+
+	if restored, ok := h.sessions.CanRestore(sid); ok {
 		c.mu.Lock()
 		c.nick = restored.Nick
 		if msg.Nick != "" && validateNick(msg.Nick) {
 			c.nick = msg.Nick
 		}
 		c.mu.Unlock()
-		h.sessions.Upsert(c.sessionID, c.nick, restored.Rooms, c)
+		h.sessions.Upsert(sid, c.nick, restored.Rooms, c)
 		for _, roomName := range restored.Rooms {
 			_ = c.joinRoom(h, roomName)
 		}
@@ -131,23 +172,24 @@ func (c *Client) handleHello(h *Hub, msg ClientMessage) {
 			_ = c.joinRoom(h, lobbyRoom)
 		}
 		c.Send(ServerMessage{
-			Type:   "session_restored",
-			Target: TargetSystem,
-			Nick:   c.nick,
-			Rooms:  c.joinedRooms(),
+			Type:      "session_restored",
+			Target:    TargetSystem,
+			Nick:      c.nick,
+			Rooms:     c.joinedRooms(),
+			SessionID: sid,
 		})
 		c.sendSystem("Session restored. Welcome back, " + displayNick(c.nick))
 		c.sendReleaseNotice(h)
 		return
 	}
 
-	h.sessions.Upsert(c.sessionID, "", nil, c)
-	c.Send(ServerMessage{Type: "session_new", Target: TargetSystem})
+	h.sessions.Upsert(sid, "", nil, c)
+	c.Send(ServerMessage{Type: "session_new", Target: TargetSystem, SessionID: sid})
 	if msg.Nick != "" && validateNick(msg.Nick) {
 		c.mu.Lock()
 		c.nick = msg.Nick
 		c.mu.Unlock()
-		h.sessions.UpdateNick(c.sessionID, c.nick)
+		h.sessions.UpdateNick(sid, c.nick)
 	}
 	c.sendSystem("Welcome to DoomChat II. Set your nick: /nick YourName#secret")
 	_ = c.joinRoom(h, lobbyRoom)
@@ -247,12 +289,24 @@ func (c *Client) handleJoin(h *Hub, msg ClientMessage) {
 		c.sendError("usage: /join #room")
 		return
 	}
-	if err := c.joinRoom(h, roomName); err != nil {
-		if err == errRoomNotFound {
-			c.sendError("room not found: " + roomName)
-		} else {
-			c.sendError(err.Error())
+	room, ok := h.rooms.Get(roomName)
+	if !ok {
+		c.sendError("room not found: " + roomName)
+		return
+	}
+	if room.Encrypted {
+		pass := strings.TrimSpace(msg.Password)
+		if pass == "" {
+			c.sendError(errPasswordRequired.Error())
+			return
 		}
+		if !room.CheckPassword(pass) {
+			c.sendError(errWrongPassword.Error())
+			return
+		}
+	}
+	if err := c.joinRoom(h, roomName); err != nil {
+		c.sendError(err.Error())
 	}
 }
 
@@ -271,20 +325,27 @@ func (c *Client) handlePart(h *Hub, msg ClientMessage) {
 func (c *Client) handleCreateRoom(h *Hub, msg ClientMessage) {
 	name := strings.TrimSpace(msg.Name)
 	if name == "" {
-		c.sendError("usage: /create private <name> <password>")
+		c.sendError("usage: /create public <name>  |  /create private <name> <password>")
 		return
 	}
 	roomName := normalizeRoom(name)
-	if !msg.Encrypted {
-		c.sendError("only private encrypted rooms can be created")
+	if !validateRoomName(roomName) {
+		c.sendError("invalid room name")
 		return
 	}
-	_, err := h.rooms.Create(roomName, true)
+	c.mu.Lock()
+	sid := c.sessionID
+	c.mu.Unlock()
+	_, err := h.rooms.Create(roomName, msg.Encrypted, c.clientIP, sid, strings.TrimSpace(msg.Password))
 	if err != nil {
 		c.sendError(err.Error())
 		return
 	}
-	c.sendSystem(fmt.Sprintf("Private encrypted room %s created. /join %s <password> on clients to derive keys.", roomName, roomName))
+	if msg.Encrypted {
+		c.sendSystem(fmt.Sprintf("Private room %s created. /join %s <password>", roomName, roomName))
+	} else {
+		c.sendSystem(fmt.Sprintf("Public room %s created. Anyone can /join %s", roomName, roomName))
+	}
 	_ = c.joinRoom(h, roomName)
 }
 

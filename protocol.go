@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"regexp"
 	"strings"
 	"unicode/utf8"
 )
@@ -9,6 +10,7 @@ import (
 const (
 	maxMessageLen = 2048
 	maxNickLen    = 32
+	maxRoomLen    = 64
 	lobbyRoom     = "#lobby"
 )
 
@@ -55,6 +57,7 @@ type ServerMessage struct {
 	Mentions  []string       `json:"mentions,omitempty"`
 	Nicks     []string       `json:"nicks,omitempty"`
 	Rooms     []string       `json:"rooms,omitempty"`
+	SessionID string         `json:"session_id,omitempty"`
 	Question  string         `json:"question,omitempty"`
 	Number    int            `json:"number,omitempty"`
 	Winner    string         `json:"winner,omitempty"`
@@ -134,6 +137,33 @@ func validateNick(nick string) bool {
 
 func validateText(text string) bool {
 	return text != "" && utf8.RuneCountInString(text) <= maxMessageLen
+}
+
+var sessionIDRE = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+
+func validateSessionID(id string) bool {
+	return id != "" && len(id) <= 36 && sessionIDRE.MatchString(id)
+}
+
+func validateRoomName(name string) bool {
+	name = normalizeRoom(name)
+	if name == "" || name == lobbyRoom {
+		return false
+	}
+	if utf8.RuneCountInString(name) > maxRoomLen {
+		return false
+	}
+	slug := strings.TrimPrefix(name, "#")
+	if slug == "" {
+		return false
+	}
+	for _, r := range slug {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' || r == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func validateAsciiID(id string) bool {

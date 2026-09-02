@@ -15,7 +15,7 @@ type DB struct {
 }
 
 func OpenDB(dataDir string) (*DB, error) {
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
+	if err := os.MkdirAll(dataDir, 0700); err != nil {
 		return nil, err
 	}
 	path := filepath.Join(dataDir, "doomchat.db")

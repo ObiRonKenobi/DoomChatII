@@ -4,23 +4,39 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Room struct {
-	Name      string
-	Encrypted bool
-	members   map[*Client]struct{}
-	mu        sync.RWMutex
+	Name         string
+	Encrypted    bool
+	UserCreated  bool
+	CreatorIP    string
+	CreatorSID   string
+	PasswordHash []byte
+	CreatedAt    time.Time
+	LastActivity time.Time
+	members      map[*Client]struct{}
+	mu           sync.RWMutex
 }
 
 type RoomManager struct {
 	mu    sync.RWMutex
 	rooms map[string]*Room
+	cfg   LimitConfig
+	track *RoomCreateTracker
 }
 
-func NewRoomManager() *RoomManager {
-	rm := &RoomManager{rooms: make(map[string]*Room)}
+func NewRoomManager(cfg LimitConfig, track *RoomCreateTracker) *RoomManager {
+	rm := &RoomManager{
+		rooms: make(map[string]*Room),
+		cfg:   cfg,
+		track: track,
+	}
 	rm.ensureLobby()
+	go rm.evictLoop()
 	return rm
 }
 
@@ -28,7 +44,13 @@ func (rm *RoomManager) ensureLobby() {
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
 	if _, ok := rm.rooms[lobbyRoom]; !ok {
-		rm.rooms[lobbyRoom] = &Room{Name: lobbyRoom, members: make(map[*Client]struct{})}
+		rm.rooms[lobbyRoom] = &Room{
+			Name:         lobbyRoom,
+			UserCreated:  false,
+			CreatedAt:    time.Now(),
+			LastActivity: time.Now(),
+			members:      make(map[*Client]struct{}),
+		}
 	}
 }
 
@@ -39,19 +61,79 @@ func (rm *RoomManager) Get(name string) (*Room, bool) {
 	return r, ok
 }
 
-func (rm *RoomManager) Create(name string, encrypted bool) (*Room, error) {
+func (rm *RoomManager) CountUserCreated() int {
+	rm.mu.RLock()
+	defer rm.mu.RUnlock()
+	n := 0
+	for _, r := range rm.rooms {
+		if r.UserCreated {
+			n++
+		}
+	}
+	return n
+}
+
+func (rm *RoomManager) Create(name string, encrypted bool, creatorIP, sessionID, password string) (*Room, error) {
 	name = normalizeRoom(name)
-	if name == "" {
+	if !validateRoomName(name) {
 		return nil, fmt.Errorf("invalid room name")
 	}
+	if name == lobbyRoom {
+		return nil, fmt.Errorf("cannot create lobby")
+	}
+	ok, msg := rm.track.CanCreate(creatorIP, sessionID, rm.CountUserCreated())
+	if !ok {
+		return nil, fmt.Errorf("%s", msg)
+	}
+	var hash []byte
+	if encrypted {
+		if password == "" {
+			return nil, fmt.Errorf("private rooms require a password")
+		}
+		if len(password) > 128 {
+			return nil, fmt.Errorf("password too long")
+		}
+		h, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+		if err != nil {
+			return nil, fmt.Errorf("could not secure room password")
+		}
+		hash = h
+	}
+	now := time.Now()
 	rm.mu.Lock()
 	defer rm.mu.Unlock()
-	if _, ok := rm.rooms[name]; ok {
+	if _, exists := rm.rooms[name]; exists {
 		return nil, fmt.Errorf("room already exists")
 	}
-	r := &Room{Name: name, Encrypted: encrypted, members: make(map[*Client]struct{})}
+	r := &Room{
+		Name:         name,
+		Encrypted:    encrypted,
+		UserCreated:  true,
+		CreatorIP:    creatorIP,
+		CreatorSID:   sessionID,
+		PasswordHash: hash,
+		CreatedAt:    now,
+		LastActivity: now,
+		members:      make(map[*Client]struct{}),
+	}
 	rm.rooms[name] = r
+	rm.track.Register(creatorIP, sessionID)
 	return r, nil
+}
+
+func (r *Room) CheckPassword(password string) bool {
+	if !r.Encrypted || len(r.PasswordHash) == 0 {
+		return true
+	}
+	return bcrypt.CompareHashAndPassword(r.PasswordHash, []byte(password)) == nil
+}
+
+func (r *Room) memberCap(cfg LimitConfig) int {
+	return cfg.memberCap(r.Name, r.Encrypted)
+}
+
+func (r *Room) touchLocked() {
+	r.LastActivity = time.Now()
 }
 
 func (rm *RoomManager) ListPublicWithCounts() []RoomCount {
@@ -67,16 +149,23 @@ func (rm *RoomManager) ListPublicWithCounts() []RoomCount {
 	return list
 }
 
-func (r *Room) Join(c *Client) {
+func (r *Room) Join(c *Client, cfg LimitConfig) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	cap := r.memberCap(cfg)
+	if len(r.members) >= cap {
+		return errRoomFull
+	}
 	r.members[c] = struct{}{}
+	r.touchLocked()
+	return nil
 }
 
 func (r *Room) Part(c *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.members, c)
+	r.touchLocked()
 }
 
 func (r *Room) MemberCount() int {
@@ -143,4 +232,29 @@ func (r *Room) Broadcast(msg ServerMessage, exclude *Client) {
 
 func (r *Room) BroadcastAll(msg ServerMessage) {
 	r.Broadcast(msg, nil)
+}
+
+func (rm *RoomManager) evictLoop() {
+	ticker := time.NewTicker(rm.cfg.RoomEvictInterval)
+	defer ticker.Stop()
+	for range ticker.C {
+		rm.evictStale()
+	}
+}
+
+func (rm *RoomManager) evictStale() {
+	now := time.Now()
+	rm.mu.Lock()
+	defer rm.mu.Unlock()
+	for name, r := range rm.rooms {
+		if !r.UserCreated {
+			continue
+		}
+		idle := r.MemberCount() == 0 && now.Sub(r.LastActivity) > rm.cfg.RoomIdleTTL
+		tooOld := now.Sub(r.CreatedAt) > rm.cfg.RoomMaxAge
+		if idle || tooOld {
+			delete(rm.rooms, name)
+			rm.track.Unregister(r.CreatorIP, r.CreatorSID)
+		}
+	}
 }

@@ -122,6 +122,8 @@
   const joinedRooms = new Set(['#lobby']);
   const roomKeys = new Map();
   const roomMemberNicks = new Map();
+  let pendingPrivateJoin = '';
+  let lastJoinAttempt = '';
   let numberedPublicRooms = [];
   const NORMAL_FONT_SIZE = 14;
   const BRIMLEY_FONT_SIZE = 24;
@@ -575,12 +577,21 @@
         writelnSystem(msg.text);
         break;
       case 'error':
-        writelnSystem(msg.text, true);
+        if (msg.text && msg.text.indexOf('password required') >= 0 && lastJoinAttempt) {
+          pendingPrivateJoin = lastJoinAttempt;
+          writelnSystem('Password for ' + pendingPrivateJoin + ':', true);
+        } else {
+          writelnSystem(msg.text, true);
+        }
         break;
       case 'release':
         handleRelease(msg);
         break;
       case 'session_restored':
+        if (msg.session_id) {
+          settings.session_id = msg.session_id;
+          saveSettings();
+        }
         if (msg.nick) fullNick = msg.nick;
         if (msg.rooms && msg.rooms.length) {
           joinedRooms.clear();
@@ -591,6 +602,10 @@
         writelnSystem('Session restored for ' + (msg.nick || 'guest') + ' — back in #lobby');
         break;
       case 'session_new':
+        if (msg.session_id) {
+          settings.session_id = msg.session_id;
+          saveSettings();
+        }
         writelnSystem('New session. Use /nick YourName#secret');
         if (settings.last_nick) {
           writelnSystem('Hint: last nick was "' + settings.last_nick + '" (re-enter tripcode secret).');
@@ -723,6 +738,8 @@
   }
 
   function writeChatEntry(nick, timestamp, text, room) {
+    nick = stripTerminalEscapes(nick || '');
+    text = stripTerminalEscapes(text || '');
     let nickLine = formatNickColored(nick, true);
     if (room && room !== currentRoom) {
       nickLine = nickLine + ' \x1b[2m(' + room + ')\x1b[0m';
@@ -1318,11 +1335,32 @@
     sendBtnEl.disabled = !inputEl.value.trim();
   }
 
+  function stripTerminalEscapes(text) {
+    return String(text).replace(/\x1b\][^\x07]*\x07/g, '').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '');
+  }
+
   async function submitLine() {
     const line = inputEl.value.trim();
     if (!line) return;
     inputEl.value = '';
     syncSendButton();
+
+    if (pendingPrivateJoin) {
+      const room = pendingPrivateJoin;
+      const pass = line;
+      pendingPrivateJoin = '';
+      try {
+        const key = await deriveKey(pass, room);
+        roomKeys.set(room, key);
+        setActiveRoom(room);
+        joinedRooms.add(room);
+        send({ type: 'join', room, password: pass });
+      } catch (err) {
+        writelnSystem('Join failed: ' + (err && err.message ? err.message : err), true);
+      }
+      if (isMobileLayout()) setMobilePane('system');
+      return;
+    }
 
     if (line.startsWith('/')) {
       try {
@@ -1381,8 +1419,8 @@
         '/brimley — toggle VISUAL AIDS MODE (enlarged chat + system text)'
       ],
       create: [
-        '/create — create a private encrypted room',
-        'Usage: /create private <name> <password>'
+        '/create — create a public or private room',
+        'Usage: /create public <name>  |  /create private <name> <password>'
       ],
       emote: [
         '/emote — perform an action toward another user in the room',
@@ -1400,7 +1438,7 @@
       ],
       join: [
         '/join — join a chat room',
-        'Usage: /join #room  |  /join <room> <password>  (encrypted rooms)'
+        'Usage: /join #room  |  /join <room> <password>  (private rooms)'
       ],
       list: [
         '/list — list public rooms with user counts'
@@ -1521,15 +1559,21 @@
         let room = joinParts[0];
         if (!room.startsWith('#')) room = '#' + room;
         room = room.toLowerCase();
-        if (joinParts.length >= 2) {
-          const pass = joinParts.slice(1).join(' ');
+        const pass = joinParts.length >= 2 ? joinParts.slice(1).join(' ') : '';
+        if (pass) {
           const key = await deriveKey(pass, room);
           roomKeys.set(room, key);
           writelnSystem('Encryption key derived for ' + room);
+          setActiveRoom(room);
+          joinedRooms.add(room);
+          lastJoinAttempt = room;
+          send({ type: 'join', room, password: pass });
+        } else {
+          lastJoinAttempt = room;
+          setActiveRoom(room);
+          joinedRooms.add(room);
+          send({ type: 'join', room });
         }
-        setActiveRoom(room);
-        joinedRooms.add(room);
-        send({ type: 'join', room });
         break;
       }
 
@@ -1546,17 +1590,27 @@
           showCommandHelp('create');
           return;
         }
-        if (parts[1] !== 'private' || parts.length < 4) {
-          showCommandHelp('create');
-          return;
+        const kind = (parts[1] || '').toLowerCase();
+        if (kind === 'public' && parts.length >= 3) {
+          const name = parts[2];
+          const room = ('#' + name).toLowerCase();
+          setActiveRoom(room);
+          joinedRooms.add(room);
+          send({ type: 'create_room', name, encrypted: false });
+          break;
         }
-        const name = parts[2];
-        const pass = parts.slice(3).join(' ');
-        const room = ('#' + name).toLowerCase();
-        const key = await deriveKey(pass, room);
-        roomKeys.set(room, key);
-        setActiveRoom(room);
-        send({ type: 'create_room', name, encrypted: true });
+        if (kind === 'private' && parts.length >= 4) {
+          const name = parts[2];
+          const pass = parts.slice(3).join(' ');
+          const room = ('#' + name).toLowerCase();
+          const key = await deriveKey(pass, room);
+          roomKeys.set(room, key);
+          setActiveRoom(room);
+          joinedRooms.add(room);
+          send({ type: 'create_room', name, encrypted: true, password: pass });
+          break;
+        }
+        showCommandHelp('create');
         break;
       }
 

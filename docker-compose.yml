@@ -3,13 +3,20 @@ services:
     build: .
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - doomchat_data:/data
+    env_file:
+      - .env
     environment:
       PORT: "8080"
       DATA_DIR: /data
-      BASE_URL: ${BASE_URL:-http://127.0.0.1:8080}
+      BASE_URL: ${BASE_URL:-https://chat.rbyt3r.com}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-https://chat.rbyt3r.com}
+      MAX_LOBBY_MEMBERS: ${MAX_LOBBY_MEMBERS:-2048}
+      MAX_PUBLIC_ROOM_MEMBERS: ${MAX_PUBLIC_ROOM_MEMBERS:-24}
+      MAX_PRIVATE_ROOM_MEMBERS: ${MAX_PRIVATE_ROOM_MEMBERS:-12}
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8080/health"]
       interval: 30s

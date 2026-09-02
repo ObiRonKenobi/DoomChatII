@@ -16,6 +16,8 @@ func main() {
 	port := envOr("PORT", "8080")
 	baseURL := envOr("BASE_URL", "http://localhost:"+port)
 	dataDir := envOr("DATA_DIR", "./data")
+	limits := LoadLimitConfig()
+	initUpgrader(limits)
 
 	db, err := OpenDB(dataDir)
 	if err != nil {
@@ -32,7 +34,7 @@ func main() {
 		}
 	}
 
-	hub := NewHub(db, trivia)
+	hub := NewHub(db, trivia, limits)
 	go hub.Run()
 	hub.LoadRelease(filepath.Join(".", "release.txt"))
 
@@ -48,19 +50,22 @@ func main() {
 	webDir := filepath.Join(".", "web")
 	if _, err := os.Stat(webDir); err == nil {
 		fs := http.FileServer(http.Dir(webDir))
-		mux.Handle("/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mux.Handle("/", securityHeaders(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			p := r.URL.Path
 			if strings.HasSuffix(p, ".js") || strings.HasSuffix(p, ".css") || strings.HasSuffix(p, ".html") {
 				w.Header().Set("Cache-Control", "no-cache, must-revalidate")
 			}
 			fs.ServeHTTP(w, r)
-		}))
+		})))
 	}
 
 	srv := &http.Server{
 		Addr:              ":" + port,
 		Handler:           mux,
 		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       120 * time.Second,
 	}
 
 	go func() {
@@ -78,6 +83,16 @@ func main() {
 	defer cancel()
 	_ = srv.Shutdown(ctx)
 	log.Println("shutdown complete")
+}
+
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' wss: ws:; img-src 'self' data:")
+		next.ServeHTTP(w, r)
+	})
 }
 
 func envOr(key, def string) string {

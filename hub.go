@@ -11,23 +11,31 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
+var upgrader websocket.Upgrader
+
+func initUpgrader(cfg LimitConfig) {
+	upgrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			return originAllowed(r.Header.Get("Origin"), cfg.AllowedOrigins)
+		},
+	}
 }
 
 type Client struct {
-	hub       *Hub
-	conn      *websocket.Conn
-	send      chan []byte
-	nick      string
-	sessionID string
-	rooms     map[string]struct{}
-	mu        sync.Mutex
-	lastNick  time.Time
+	hub        *Hub
+	conn       *websocket.Conn
+	send       chan []byte
+	nick       string
+	sessionID  string
+	rooms      map[string]struct{}
+	mu         sync.Mutex
+	lastNick   time.Time
+	helloDone  bool
+	clientIP   string
+	chatBucket *tokenBucket
+	cmdBucket  *tokenBucket
 }
 
 type Hub struct {
@@ -44,12 +52,15 @@ type Hub struct {
 	mu             sync.RWMutex
 	rateMu         sync.Mutex
 	connRate       map[string][]time.Time
+	limits         LimitConfig
+	connCount      int
 }
 
-func NewHub(db *DB, trivia *TriviaManager) *Hub {
+func NewHub(db *DB, trivia *TriviaManager, cfg LimitConfig) *Hub {
+	track := NewRoomCreateTracker(cfg)
 	return &Hub{
 		clients:    make(map[*Client]struct{}),
-		rooms:      NewRoomManager(),
+		rooms:      NewRoomManager(cfg, track),
 		sessions:   NewSessionManager(),
 		db:         db,
 		trivia:     trivia,
@@ -57,6 +68,7 @@ func NewHub(db *DB, trivia *TriviaManager) *Hub {
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		connRate:   make(map[string][]time.Time),
+		limits:     cfg,
 	}
 }
 
@@ -66,6 +78,7 @@ func (h *Hub) Run() {
 		case c := <-h.register:
 			h.mu.Lock()
 			h.clients[c] = struct{}{}
+			h.connCount++
 			h.mu.Unlock()
 		case c := <-h.unregister:
 			h.removeClient(c)
@@ -77,6 +90,7 @@ func (h *Hub) removeClient(c *Client) {
 	h.mu.Lock()
 	if _, ok := h.clients[c]; ok {
 		delete(h.clients, c)
+		h.connCount--
 		close(c.send)
 	}
 	h.mu.Unlock()
@@ -120,7 +134,7 @@ func (h *Hub) allowConnection(ip string) bool {
 			recent = append(recent, t)
 		}
 	}
-	if len(recent) >= 10 {
+	if len(recent) >= h.limits.ConnRatePerMinute {
 		return false
 	}
 	recent = append(recent, now)
@@ -199,11 +213,20 @@ func (c *Client) joinRoom(h *Hub, roomName string) error {
 		c.mu.Unlock()
 		return nil
 	}
+	if len(c.rooms) >= h.limits.MaxJoinedRooms {
+		c.mu.Unlock()
+		return errTooManyJoined
+	}
 	c.rooms[roomName] = struct{}{}
 	nick := c.nick
 	c.mu.Unlock()
 
-	room.Join(c)
+	if err := room.Join(c, h.limits); err != nil {
+		c.mu.Lock()
+		delete(c.rooms, roomName)
+		c.mu.Unlock()
+		return err
+	}
 	c.sendSystem("Joined " + roomName)
 	if entries := h.history.GetRoomHistory(roomName); len(entries) > 0 {
 		c.Send(ServerMessage{
@@ -255,7 +278,14 @@ func (c *Client) partRoom(h *Hub, roomName string) {
 }
 
 func serveWS(h *Hub, w http.ResponseWriter, r *http.Request) {
-	ip := clientIPFromRequest(r)
+	h.mu.RLock()
+	atCap := h.connCount >= h.limits.MaxConnections
+	h.mu.RUnlock()
+	if atCap {
+		http.Error(w, "server full", http.StatusServiceUnavailable)
+		return
+	}
+	ip := clientIPFromRequest(r, h.limits.TrustProxy)
 	if !h.allowConnection(ip) {
 		http.Error(w, "rate limited", http.StatusTooManyRequests)
 		return
@@ -265,19 +295,27 @@ func serveWS(h *Hub, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	client := &Client{
-		hub:   h,
-		conn:  conn,
-		send:  make(chan []byte, 256),
-		rooms: make(map[string]struct{}),
+		hub:        h,
+		conn:       conn,
+		send:       make(chan []byte, 256),
+		rooms:      make(map[string]struct{}),
+		clientIP:   ip,
+		chatBucket: newTokenBucket(h.limits.ChatBurst, h.limits.ChatWindow),
+		cmdBucket:  newTokenBucket(h.limits.CmdBurst, h.limits.CmdWindow),
 	}
 	h.register <- client
 	go client.writePump()
 	go client.readPump(h)
 }
 
-func clientIPFromRequest(r *http.Request) string {
-	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
-		return strings.TrimSpace(strings.Split(xff, ",")[0])
+func clientIPFromRequest(r *http.Request, trustProxy bool) string {
+	if trustProxy {
+		if cf := r.Header.Get("CF-Connecting-IP"); cf != "" {
+			return strings.TrimSpace(cf)
+		}
+		if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+			return strings.TrimSpace(strings.Split(xff, ",")[0])
+		}
 	}
 	host, _, err := net.SplitHostPort(r.RemoteAddr)
 	if err != nil {
@@ -287,8 +325,12 @@ func clientIPFromRequest(r *http.Request) string {
 }
 
 var (
-	errInvalidRoom  = &clientError{"invalid room name"}
-	errRoomNotFound = &clientError{"room not found"}
+	errInvalidRoom      = &clientError{"invalid room name"}
+	errRoomNotFound     = &clientError{"room not found"}
+	errRoomFull         = &clientError{"room full"}
+	errTooManyJoined    = &clientError{"too many rooms joined"}
+	errPasswordRequired = &clientError{"private room — password required"}
+	errWrongPassword    = &clientError{"wrong password"}
 )
 
 type clientError struct{ msg string }
