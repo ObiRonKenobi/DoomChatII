@@ -383,19 +383,11 @@
     }
   }
 
-  function extractTripcode(nick) {
-    if (!nick) return null;
-    const bang = nick.indexOf('!');
-    if (bang < 0) return null;
-    return nick.slice(bang);
-  }
+  const ADMIN_TRIPCODE = '!ee523587';
 
   function updateTripcodeBanner() {
     if (!tripcodeBannerEl) return;
-    const tc = extractTripcode(fullNick);
-    tripcodeBannerEl.textContent = tc
-      ? 'Tripcode of the Gods: ' + tc
-      : 'Tripcode of the Gods: —';
+    tripcodeBannerEl.textContent = 'Tripcode of the Gods: ' + ADMIN_TRIPCODE;
   }
 
   function currentRoomMemberCount() {
@@ -638,7 +630,6 @@
           saveSettings();
         }
         if (msg.nick) fullNick = msg.nick;
-        updateTripcodeBanner();
         if (msg.rooms && msg.rooms.length) {
           joinedRooms.clear();
           msg.rooms.forEach((r) => joinedRooms.add(r));
@@ -1606,7 +1597,6 @@
         fullNick = trip.display;
         settings.last_nick = trip.name;
         saveSettings();
-        updateTripcodeBanner();
         send({ type: 'nick', nick: fullNick });
         writelnSystem('Nick set locally to ' + formatNickColored(fullNick, false));
         break;
